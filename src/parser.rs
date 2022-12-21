@@ -76,7 +76,7 @@ impl Parser {
 
     fn comparison(&mut self) -> Result<Expr, ParserError> {
         let mut expr = self.term()?;
-        while self.matches(vec![Greater, GreaterEqual, Less, LessEqual]) {
+        while self.matches(vec![Greater, GreaterEqual, Less, LessEqual, Percent]) {
             let operator = self.previous();
             let right = self.term()?;
             expr = Expr::Binary(Box::new(expr), operator, Box::new(right));

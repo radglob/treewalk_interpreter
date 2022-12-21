@@ -181,6 +181,10 @@ impl Scanner {
                 }
                 Ok(())
             }
+            '%' => {
+                self.add_token(TokenType::Percent, None);
+                Ok(())
+            }
 
             _ => {
                 if c.is_digit(10) {

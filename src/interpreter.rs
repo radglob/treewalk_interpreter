@@ -147,6 +147,9 @@ impl Interpreter {
                         operator,
                         "Operands must be two numbers or two strings.".to_string(),
                     )),
+                    (TokenType::Percent, Literal::Number(a), Literal::Number(b)) => {
+                        Ok(Literal::Number(a % b))
+                    }
                     (TokenType::Greater, Literal::Number(a), Literal::Number(b)) => {
                         Ok(Literal::from(a > b))
                     }
