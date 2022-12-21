@@ -94,36 +94,37 @@ impl Interpreter {
             Expr::Literal(literal) => Ok(literal),
             Expr::Grouping(expr) => self.evaluate(*expr),
             Expr::Unary(operator, right) => {
-                let right = self.evaluate(*right).unwrap();
+                let right = self.evaluate(*right);
                 match (operator.token_type, right.clone()) {
-                    (TokenType::Minus, Literal::Number(n)) => Ok(Literal::Number(-n)),
+                    (TokenType::Minus, Ok(Literal::Number(n))) => Ok(Literal::Number(-n)),
                     (TokenType::Minus, _) => Err(RuntimeError::new(
                         operator,
                         "Operand must be a number.".to_string(),
                     )),
-                    (TokenType::Bang, _) => {
-                        let b = !self.is_truthy(&right);
+                    (TokenType::Bang, Ok(_)) => {
+                        let b = !self.is_truthy(&right.unwrap());
                         if b {
                             Ok(Literal::True)
                         } else {
                             Ok(Literal::False)
                         }
                     }
-                    _ => panic!(),
+                    (_, Err(err)) => Err(err),
+                    _ => panic!()
                 }
             }
             Expr::Binary(left, operator, right) => {
-                let left = self.evaluate(*left).unwrap();
-                let right = self.evaluate(*right).unwrap();
+                let left = self.evaluate(*left);
+                let right = self.evaluate(*right);
                 match (operator.token_type, left, right) {
-                    (TokenType::Minus, Literal::Number(a), Literal::Number(b)) => {
+                    (TokenType::Minus, Ok(Literal::Number(a)), Ok(Literal::Number(b))) => {
                         Ok(Literal::Number(a - b))
                     }
                     (TokenType::Minus, _, _) => Err(RuntimeError::new(
                         operator,
                         "Operands must be numbers.".to_string(),
                     )),
-                    (TokenType::Slash, Literal::Number(a), Literal::Number(b)) => {
+                    (TokenType::Slash, Ok(Literal::Number(a)), Ok(Literal::Number(b))) => {
                         if b == 0.0 {
                             Err(RuntimeError::new(operator, "Cannot divide by zero".to_string()))
                         } else {
@@ -134,17 +135,17 @@ impl Interpreter {
                         operator,
                         "Operands must be numbers.".to_string(),
                     )),
-                    (TokenType::Star, Literal::Number(a), Literal::Number(b)) => {
+                    (TokenType::Star, Ok(Literal::Number(a)), Ok(Literal::Number(b))) => {
                         Ok(Literal::Number(a * b))
                     }
                     (TokenType::Star, _, _) => Err(RuntimeError::new(
                         operator,
                         "Operands must be numbers.".to_string(),
                     )),
-                    (TokenType::Plus, Literal::Number(a), Literal::Number(b)) => {
+                    (TokenType::Plus, Ok(Literal::Number(a)), Ok(Literal::Number(b))) => {
                         Ok(Literal::Number(a + b))
                     }
-                    (TokenType::Plus, Literal::String(s1), Literal::String(s2)) => {
+                    (TokenType::Plus, Ok(Literal::String(s1)), Ok(Literal::String(s2))) => {
                         let mut s = String::from(s1);
                         s.push_str(&s2);
                         Ok(Literal::String(s))
@@ -153,43 +154,45 @@ impl Interpreter {
                         operator,
                         "Operands must be two numbers or two strings.".to_string(),
                     )),
-                    (TokenType::Percent, Literal::Number(a), Literal::Number(b)) => {
+                    (TokenType::Percent, Ok(Literal::Number(a)), Ok(Literal::Number(b))) => {
                         Ok(Literal::Number(a % b))
                     }
                     (TokenType::Percent, _, _) => Err(RuntimeError::new(
                             operator,
                             "Operands must be numbers".to_string()
                     )),
-                    (TokenType::Greater, Literal::Number(a), Literal::Number(b)) => {
+                    (TokenType::Greater, Ok(Literal::Number(a)), Ok(Literal::Number(b))) => {
                         Ok(Literal::from(a > b))
                     }
                     (TokenType::Greater, _, _) => Err(RuntimeError::new(
                         operator,
                         "Operands must be numbers.".to_string(),
                     )),
-                    (TokenType::GreaterEqual, Literal::Number(a), Literal::Number(b)) => {
+                    (TokenType::GreaterEqual, Ok(Literal::Number(a)), Ok(Literal::Number(b))) => {
                         Ok(Literal::from(a >= b))
                     }
                     (TokenType::GreaterEqual, _, _) => Err(RuntimeError::new(
                         operator,
                         "Operands must be numbers.".to_string(),
                     )),
-                    (TokenType::Less, Literal::Number(a), Literal::Number(b)) => {
+                    (TokenType::Less, Ok(Literal::Number(a)), Ok(Literal::Number(b))) => {
                         Ok(Literal::from(a < b))
                     }
                     (TokenType::Less, _, _) => Err(RuntimeError::new(
                         operator,
                         "Operands must be numbers.".to_string(),
                     )),
-                    (TokenType::LessEqual, Literal::Number(a), Literal::Number(b)) => {
+                    (TokenType::LessEqual, Ok(Literal::Number(a)), Ok(Literal::Number(b))) => {
                         Ok(Literal::from(a <= b))
                     }
                     (TokenType::LessEqual, _, _) => Err(RuntimeError::new(
                         operator,
                         "Operands must be numbers.".to_string(),
                     )),
-                    (TokenType::BangEqual, l1, l2) => Ok(Literal::from(!self.is_equal(&l1, &l2))),
-                    (TokenType::EqualEqual, l1, l2) => Ok(Literal::from(self.is_equal(&l1, &l2))),
+                    (TokenType::BangEqual, Ok(l1), Ok(l2)) => Ok(Literal::from(!self.is_equal(&l1, &l2))),
+                    (TokenType::EqualEqual, Ok(l1), Ok(l2)) => Ok(Literal::from(self.is_equal(&l1, &l2))),
+                    (_, Err(err), _) => Err(err),
+                    (_, _, Err(err)) => Err(err),
 
                     _ => unimplemented!(),
                 }
