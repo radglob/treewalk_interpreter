@@ -38,14 +38,16 @@ impl Interpreter {
     fn run(&mut self, source: String) -> Result<(), Box<dyn Error>> {
         let mut scanner = Scanner::new(source);
         if let Err(err) = scanner.scan_tokens() {
-            println!("{:?}", err);
-            self.error(scanner.line as u32, "Unexpected character.".to_string())?;
+            self.error(scanner.line as u32, err.to_string())?;
         }
 
         let mut parser = Parser::new(scanner.tokens);
         let expression = parser.parse().unwrap();
 
-        self.interpret(expression)?;
+        if let Err(err) = self.interpret(expression) {
+            self.runtime_error(err)?;
+        };
+
         Ok(())
     }
 
@@ -122,7 +124,11 @@ impl Interpreter {
                         "Operands must be numbers.".to_string(),
                     )),
                     (TokenType::Slash, Literal::Number(a), Literal::Number(b)) => {
-                        Ok(Literal::Number(a / b))
+                        if b == 0.0 {
+                            Err(RuntimeError::new(operator, "Cannot divide by zero".to_string()))
+                        } else {
+                            Ok(Literal::Number(a / b))
+                        }
                     }
                     (TokenType::Slash, _, _) => Err(RuntimeError::new(
                         operator,
@@ -150,6 +156,10 @@ impl Interpreter {
                     (TokenType::Percent, Literal::Number(a), Literal::Number(b)) => {
                         Ok(Literal::Number(a % b))
                     }
+                    (TokenType::Percent, _, _) => Err(RuntimeError::new(
+                            operator,
+                            "Operands must be numbers".to_string()
+                    )),
                     (TokenType::Greater, Literal::Number(a), Literal::Number(b)) => {
                         Ok(Literal::from(a > b))
                     }
