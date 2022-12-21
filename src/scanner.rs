@@ -244,7 +244,7 @@ impl Scanner {
         self.advance();
 
         let value = self.source.substring(self.start + 1, self.current - 1);
-        let literal = Literal::Str(value.to_string());
+        let literal = Literal::String(value.to_string());
         self.add_token(TokenType::String, Some(literal));
         Ok(())
     }

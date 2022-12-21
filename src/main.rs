@@ -5,8 +5,13 @@ use std::process::exit;
 
 pub mod scanner;
 pub mod token;
+pub mod expr;
+pub mod parser;
+pub mod ast_printer;
 
 use crate::scanner::Scanner;
+use crate::parser::Parser;
+use crate::ast_printer::AstPrinter;
 
 pub struct Interpreter {
     had_error: bool,
@@ -18,24 +23,24 @@ impl Interpreter {
     }
 
     fn run_file(&mut self, path: &str) -> Result<(), std::io::Error> {
-        let contents = fs::read_to_string(path)?;
-        self.run(&contents)?;
+        let contents: String = fs::read_to_string(path)?;
+        self.run(contents)?;
         if self.had_error {
             exit(65)
         }
         Ok(())
     }
 
-    fn run(&mut self, source: &str) -> Result<(), std::io::Error> {
-        let mut scanner = Scanner::new(source.to_string());
+    fn run(&mut self, source: String) -> Result<(), std::io::Error> {
+        let mut scanner = Scanner::new(source);
         if let Err(_) = scanner.scan_tokens() {
             self.error(scanner.line as u32, "Unexpected character.".to_string())?;
         }
 
-        for token in scanner.tokens {
-            println!("{:?}", token);
-        }
+        let mut parser = Parser::new(scanner.tokens);
+        let expression = parser.parse().unwrap();
 
+        println!("{}", AstPrinter::new().print(expression));
         Ok(())
     }
 
@@ -46,7 +51,7 @@ impl Interpreter {
             let _ = std::io::stdout().flush();
             match std::io::stdin().read_line(&mut input) {
                 Ok(_) => {
-                    self.run(&input)?;
+                    self.run(input)?;
                     self.had_error = false;
                 }
                 Err(_) => break,
