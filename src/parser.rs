@@ -1,33 +1,7 @@
-use std::error::Error;
-use std::fmt;
-
 use crate::expr::Expr;
 use crate::token::TokenType::{self, *};
 use crate::token::{Literal, Token};
-
-#[derive(Debug)]
-pub struct ParserError {
-    pub token: Token,
-    message: std::string::String,
-}
-
-impl ParserError {
-    pub fn new(token: Token, message: std::string::String) -> Self {
-        Self { token, message }
-    }
-}
-
-impl Error for ParserError {
-    fn description(&self) -> &str {
-        &self.message.as_str()
-    }
-}
-
-impl fmt::Display for ParserError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.message)
-    }
-}
+use crate::error::ParserError;
 
 pub struct Parser {
     pub tokens: Vec<Token>,

@@ -188,7 +188,8 @@ impl Scanner {
                 } else if c.is_ascii_alphabetic() || c == '_' {
                     self.identifier()
                 } else {
-                    Err(std::io::Error::new(std::io::ErrorKind::Other, "Unexpected character"))
+                    let message = format!("Unexpected character '{}'", c);
+                    Err(std::io::Error::new(std::io::ErrorKind::Other, message))
                 }
             }
         }

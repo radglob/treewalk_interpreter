@@ -1,83 +1,18 @@
 use std::env;
-use std::fs;
-use std::io::{stderr, Write};
 use std::process::exit;
+use std::error::Error;
 
+pub mod ast_printer;
+pub mod expr;
+pub mod interpreter;
+pub mod parser;
 pub mod scanner;
 pub mod token;
-pub mod expr;
-pub mod parser;
-pub mod ast_printer;
+pub mod error;
 
-use crate::scanner::Scanner;
-use crate::parser::Parser;
-use crate::ast_printer::AstPrinter;
+use crate::interpreter::Interpreter;
 
-pub struct Interpreter {
-    had_error: bool,
-}
-
-impl Interpreter {
-    fn default() -> Self {
-        Self { had_error: false }
-    }
-
-    fn run_file(&mut self, path: &str) -> Result<(), std::io::Error> {
-        let contents: String = fs::read_to_string(path)?;
-        self.run(contents)?;
-        if self.had_error {
-            exit(65)
-        }
-        Ok(())
-    }
-
-    fn run(&mut self, source: String) -> Result<(), std::io::Error> {
-        let mut scanner = Scanner::new(source);
-        if let Err(_) = scanner.scan_tokens() {
-            self.error(scanner.line as u32, "Unexpected character.".to_string())?;
-        }
-
-        let mut parser = Parser::new(scanner.tokens);
-        let expression = parser.parse().unwrap();
-
-        println!("{}", AstPrinter::new().print(expression));
-        Ok(())
-    }
-
-    fn run_prompt(&mut self) -> Result<(), std::io::Error> {
-        loop {
-            let mut input = String::new();
-            print!("> ");
-            let _ = std::io::stdout().flush();
-            match std::io::stdin().read_line(&mut input) {
-                Ok(_) => {
-                    self.run(input)?;
-                    self.had_error = false;
-                }
-                Err(_) => break,
-            }
-        }
-        Ok(())
-    }
-
-    fn error(&mut self, line: u32, message: String) -> Result<(), std::io::Error> {
-        self.report(line, "".to_string(), message)?;
-        Ok(())
-    }
-
-    fn report(
-        &mut self,
-        line: u32,
-        location: String,
-        message: String,
-    ) -> Result<(), std::io::Error> {
-        writeln!(stderr(), "[line {}] Error{}: {}", line, location, message)?;
-        self.had_error = true;
-        Ok(())
-    }
-}
-
-fn main() -> Result<(), std::io::Error> {
+fn main() -> Result<(), Box<dyn Error>> {
     let mut interpreter = Interpreter::default();
     let args: Vec<String> = env::args().skip(1).collect();
     if args.len() > 1 {
