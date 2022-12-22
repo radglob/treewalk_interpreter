@@ -21,7 +21,8 @@ impl AstPrinter {
             }
             Expr::Grouping(expr) => self.parenthesize("group".to_string(), vec![*expr]),
             Expr::Variable(token) => format!("(var {})", token.lexeme),
-            Expr::Assign(token, value) => format!("(var {})", self.parenthesize(token.lexeme, vec![*value]))
+            Expr::Assign(token, value) => format!("(var {} {})", token.lexeme, self.output(*value)),
+            Expr::Logical(left, operator, right) => format!("({} {} {})", operator.lexeme, self.output(*left), self.output(*right))
         }
     }
 

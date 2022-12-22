@@ -131,8 +131,24 @@ impl Interpreter {
 
                 Ok(())
             }
+            Stmt::While(condition, body) => {
+                let value = self.evaluate(condition)?;
+                while self.is_truthy(&value) {
+                    self.execute((*body).clone())?
+                };
+                Ok(())
+            }
             Stmt::Block(stmts) => {
                 self.evaluate_block(stmts, Environment::with_enclosing(self.environment.clone()))?;
+                Ok(())
+            }
+            Stmt::If(condition, then_branch, else_branch) => {
+                let value = self.evaluate(condition)?;
+                if self.is_truthy(&value) {
+                    self.execute(*then_branch)?
+                } else if let Some(else_branch) = *else_branch {
+                    self.execute(else_branch)?
+                }
                 Ok(())
             }
         }
@@ -182,6 +198,17 @@ impl Interpreter {
                 Ok(value)
             }
             Expr::Variable(name) => self.environment.get(name),
+            Expr::Logical(left, operator, right) => {
+                let left = self.evaluate(*left)?;
+
+                if operator.token_type == TokenType::Or {
+                    if self.is_truthy(&left) { return Ok(left) }
+                } else {
+                    if !self.is_truthy(&left) { return Ok(left) }
+                }
+
+                self.evaluate(*right)
+            }
             Expr::Binary(left, operator, right) => {
                 let left = self.evaluate(*left);
                 let right = self.evaluate(*right);
