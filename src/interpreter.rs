@@ -9,6 +9,7 @@ use crate::parser::Parser;
 use crate::scanner::Scanner;
 use crate::token::Literal;
 use crate::token::TokenType;
+use crate::stmt::Stmt;
 
 pub struct Interpreter {
     had_error: bool,
@@ -42,9 +43,9 @@ impl Interpreter {
         }
 
         let mut parser = Parser::new(scanner.tokens);
-        let expression = parser.parse().unwrap();
+        let statements = parser.parse()?;
 
-        if let Err(err) = self.interpret(expression) {
+        if let Err(err) = self.interpret(statements) {
             self.runtime_error(err)?;
         };
 
@@ -87,6 +88,20 @@ impl Interpreter {
         writeln!(stderr(), "[line {}] Error{}: {}", line, location, message)?;
         self.had_error = true;
         Ok(())
+    }
+
+    fn execute(&self, stmt: Stmt) -> Result<(), RuntimeError> {
+        match stmt {
+            Stmt::Expression(expr) => {
+                self.evaluate(expr)?;
+                Ok(())
+            }
+            Stmt::Print(expr) => {
+                let value = self.evaluate(expr)?;
+                println!("{}", self.stringify(value));
+                Ok(())
+            }
+        }
     }
 
     fn evaluate(&self, expr: Expr) -> Result<Literal, RuntimeError> {
@@ -225,14 +240,11 @@ impl Interpreter {
         }
     }
 
-    fn interpret(&self, expr: Expr) -> Result<(), RuntimeError> {
-        match self.evaluate(expr) {
-            Ok(l) => {
-                println!("{}", self.stringify(l));
-                Ok(())
-            }
-            Err(err) => Err(err)
+    fn interpret(&self, stmts: Vec<Stmt>) -> Result<(), RuntimeError> {
+        for stmt in stmts {
+            self.execute(stmt)?
         }
+        Ok(())
     }
 
     fn stringify(&self, literal: Literal) -> String {

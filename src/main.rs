@@ -3,12 +3,13 @@ use std::process::exit;
 use std::error::Error;
 
 pub mod ast_printer;
+pub mod error;
 pub mod expr;
 pub mod interpreter;
 pub mod parser;
 pub mod scanner;
+pub mod stmt;
 pub mod token;
-pub mod error;
 
 use crate::interpreter::Interpreter;
 

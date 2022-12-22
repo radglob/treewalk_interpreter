@@ -1,7 +1,10 @@
+use std::error::Error;
+
+use crate::error::ParserError;
 use crate::expr::Expr;
+use crate::stmt::Stmt;
 use crate::token::TokenType::{self, *};
 use crate::token::{Literal, Token};
-use crate::error::ParserError;
 
 pub struct Parser {
     pub tokens: Vec<Token>,
@@ -164,10 +167,29 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> Option<Expr> {
-        match self.expression() {
-            Ok(expr) => Some(expr),
-            Err(_) => None
+    pub fn parse(&mut self) -> Result<Vec<Stmt>, Box<dyn Error>> {
+        let mut statements = vec![];
+        while !self.is_at_end() {
+            let statement = self.statement()?;
+            statements.push(statement);
         }
+        Ok(statements)
+    }
+
+    fn statement(&mut self) -> Result<Stmt, Box<dyn Error>> {
+        if self.matches(vec![Print]) { return self.print_statement() }
+        self.expression_statement()
+    }
+
+    fn print_statement(&mut self) -> Result<Stmt, Box<dyn Error>> {
+        let value = self.expression()?;
+        self.consume(Semicolon, "Expected ';' after value.")?;
+        Ok(Stmt::Print(value))
+    }
+
+    fn expression_statement(&mut self) -> Result<Stmt, Box<dyn Error>> {
+        let expr = self.expression()?;
+        self.consume(Semicolon, "Expect ';' after expression.")?;
+        Ok(Stmt::Expression(expr))
     }
 }
