@@ -17,6 +17,7 @@ pub struct Interpreter {
     had_runtime_error: bool,
     environment: Environment,
     repl: bool,
+    loop_count: u32,
 }
 
 impl Interpreter {
@@ -26,6 +27,7 @@ impl Interpreter {
             had_runtime_error: false,
             environment: Environment::new(),
             repl: false,
+            loop_count: 0,
         }
     }
 
@@ -146,10 +148,20 @@ impl Interpreter {
             Stmt::While(condition, body) => {
                 if let Some(condition) = condition {
                     let mut value = self.evaluate(condition.clone())?;
+                    self.loop_count += 1;
                     while self.is_truthy(&value) {
-                        self.execute((*body).clone())?;
+                        match self.execute((*body).clone()) {
+                            Ok(()) => (),
+                            Err(err) => {
+                                if err.message == "BREAK" {
+                                    break;
+                                }
+                                return Err(err)
+                            }
+                        }
                         value = self.evaluate(condition.clone())?;
                     }
+                    self.loop_count -= 1;
                 }
                 Ok(())
             }
@@ -157,11 +169,21 @@ impl Interpreter {
             Stmt::If(condition, then_branch, else_branch) => {
                 let value = self.evaluate(condition)?;
                 if self.is_truthy(&value) {
-                    self.execute(*then_branch)?
+                    self.execute(*then_branch)?;
                 } else if let Some(else_branch) = *else_branch {
-                    self.execute(else_branch)?
+                    self.execute(else_branch)?;
                 }
                 Ok(())
+            }
+            Stmt::Break(token) => {
+                if self.loop_count > 0 {
+                    Err(RuntimeError::new(token, "BREAK".to_string()))
+                } else {
+                    Err(RuntimeError::new(
+                        token,
+                        "Expected to be within a loop.".to_string(),
+                    ))
+                }
             }
         }
     }
@@ -347,7 +369,7 @@ impl Interpreter {
 
     fn interpret(&mut self, stmts: Vec<Stmt>) -> Result<(), RuntimeError> {
         for stmt in stmts {
-            self.execute(stmt)?
+            self.execute(stmt)?;
         }
         Ok(())
     }

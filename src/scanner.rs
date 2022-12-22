@@ -32,6 +32,7 @@ impl Scanner {
     pub fn new(source: String) -> Self {
         let keywords: HashMap<String, TokenType> = HashMap::from([
             ("and".to_string(), TokenType::And),
+            ("break".to_string(), TokenType::Break),
             ("class".to_string(), TokenType::Class),
             ("else".to_string(), TokenType::Else),
             ("false".to_string(), TokenType::False),

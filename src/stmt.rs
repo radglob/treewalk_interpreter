@@ -9,4 +9,5 @@ pub enum Stmt {
     If(Expr, Box<Stmt>, Box<Option<Stmt>>),
     While(Option<Expr>, Box<Stmt>),
     Var(Token, Option<Expr>),
+    Break(Token)
 }

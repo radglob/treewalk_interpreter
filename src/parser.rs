@@ -240,6 +240,10 @@ impl Parser {
             return self.for_statement();
         }
 
+        if self.matches(vec![Break]) {
+            return self.break_statement();
+        }
+
         if self.matches(vec![If]) {
             return self.if_statement();
         }
@@ -305,6 +309,12 @@ impl Parser {
         self.consume(RightParen, "Expect ')' after condition.")?;
         let body = self.statement()?;
         Ok(Stmt::While(Some(condition), Box::new(body)))
+    }
+
+    fn break_statement(&mut self) -> Result<Stmt, ParserError> {
+        self.consume(Semicolon, "Expect ';' after break keyword.")?;
+        let token = Token::new(TokenType::Break, "break".to_string(), None, self.current as u32);
+        Ok(Stmt::Break(token))
     }
 
     fn if_statement(&mut self) -> Result<Stmt, ParserError> {
