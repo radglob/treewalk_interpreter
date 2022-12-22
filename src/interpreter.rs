@@ -114,7 +114,7 @@ impl Interpreter {
         }
     }
 
-    fn evaluate(&self, expr: Expr) -> Result<Literal, RuntimeError> {
+    fn evaluate(&mut self, expr: Expr) -> Result<Literal, RuntimeError> {
         match expr {
             Expr::Literal(literal) => Ok(literal),
             Expr::Grouping(expr) => self.evaluate(*expr),
@@ -137,6 +137,11 @@ impl Interpreter {
                     (_, Err(err)) => Err(err),
                     _ => panic!()
                 }
+            }
+            Expr::Assign(token, value) => {
+                let value = self.evaluate(*value)?;
+                self.environment.assign(token, value.clone())?;
+                Ok(value)
             }
             Expr::Variable(name) => self.environment.get(name),
             Expr::Binary(left, operator, right) => {

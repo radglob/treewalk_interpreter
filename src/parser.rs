@@ -20,14 +20,29 @@ impl Parser {
     }
 
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self {
-            tokens,
-            current: 0
-        }
+        Self { tokens, current: 0 }
     }
 
     fn expression(&mut self) -> Result<Expr, ParserError> {
-        self.equality()
+        self.assignment()
+    }
+
+    fn assignment(&mut self) -> Result<Expr, ParserError> {
+        let expr = self.equality()?;
+        if self.matches(vec![Equal]) {
+            let equals = self.previous();
+            let value = self.assignment()?;
+
+            if let Expr::Variable(name) = expr {
+                return Ok(Expr::Assign(name, Box::new(value)));
+            }
+
+            return Err(ParserError::new(
+                equals,
+                "Invalid assignment target.".to_string(),
+            ));
+        }
+        Ok(expr)
     }
 
     fn equality(&mut self) -> Result<Expr, ParserError> {
@@ -141,7 +156,7 @@ impl Parser {
             return Ok(Expr::Grouping(Box::new(expr)));
         }
         if self.matches(vec![Identifier]) {
-            return Ok(Expr::Variable(self.previous()))
+            return Ok(Expr::Variable(self.previous()));
         }
 
         Err(ParserError::new(
@@ -161,10 +176,12 @@ impl Parser {
     fn synchronize(&mut self) {
         self.advance();
         while !self.is_at_end() {
-            if self.previous().token_type == Semicolon { return; }
+            if self.previous().token_type == Semicolon {
+                return;
+            }
             match self.peek().token_type {
                 Class | For | Fun | If | Print | Return | Var | While => return,
-                _ => ()
+                _ => (),
             }
             self.advance();
         }
@@ -180,7 +197,9 @@ impl Parser {
     }
 
     fn declaration(&mut self) -> Result<Stmt, Box<dyn Error>> {
-        if self.matches(vec![Var]) { return self.var_declaration() }
+        if self.matches(vec![Var]) {
+            return self.var_declaration();
+        }
         self.statement()
     }
 
@@ -188,14 +207,18 @@ impl Parser {
         let name = self.consume(Identifier, "Expect variable name.")?;
 
         let mut initializer = None;
-        if self.matches(vec![Equal]) { initializer = Some(self.expression()?) }
+        if self.matches(vec![Equal]) {
+            initializer = Some(self.expression()?)
+        }
 
         self.consume(Semicolon, "Expect ';' after variable declaration.")?;
         Ok(Stmt::Var(name, initializer))
     }
 
     fn statement(&mut self) -> Result<Stmt, Box<dyn Error>> {
-        if self.matches(vec![Print]) { return self.print_statement() }
+        if self.matches(vec![Print]) {
+            return self.print_statement();
+        }
         self.expression_statement()
     }
 

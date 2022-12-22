@@ -20,7 +20,8 @@ impl AstPrinter {
                 self.parenthesize(operator.lexeme, vec![*left, *right])
             }
             Expr::Grouping(expr) => self.parenthesize("group".to_string(), vec![*expr]),
-            Expr::Variable(token) => format!("(var {})", token.lexeme)
+            Expr::Variable(token) => format!("(var {})", token.lexeme),
+            Expr::Assign(token, value) => format!("(var {})", self.parenthesize(token.lexeme, vec![*value]))
         }
     }
 
