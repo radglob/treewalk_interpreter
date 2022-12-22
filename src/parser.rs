@@ -219,7 +219,19 @@ impl Parser {
         if self.matches(vec![Print]) {
             return self.print_statement();
         }
+
+        if self.matches(vec![LeftBrace]) { return Ok(Stmt::Block(self.block()?)) }
         self.expression_statement()
+    }
+
+    fn block(&mut self) -> Result<Vec<Stmt>, Box<dyn Error>> {
+        let mut stmts = vec![];
+        while !self.check(RightBrace) && !self.is_at_end() {
+            stmts.push(self.declaration()?)
+        }
+
+        self.consume(RightBrace, "Expect '}' after block.")?;
+        Ok(stmts)
     }
 
     fn print_statement(&mut self) -> Result<Stmt, Box<dyn Error>> {

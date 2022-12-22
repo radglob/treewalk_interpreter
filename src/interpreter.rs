@@ -111,7 +111,21 @@ impl Interpreter {
                 self.environment.define(token.lexeme, value);
                 Ok(())
             }
+            Stmt::Block(stmts) => {
+                self.evaluate_block(stmts, Environment::with_enclosing(self.environment.clone()))?;
+                Ok(())
+            }
         }
+    }
+
+    fn evaluate_block(&mut self, stmts: Vec<Stmt>, environment: Environment) -> Result<(), RuntimeError> {
+        let previous = self.environment.clone();
+        self.environment = environment;
+        for stmt in stmts {
+            self.execute(stmt)?;
+        }
+        self.environment = previous;
+        Ok(())
     }
 
     fn evaluate(&mut self, expr: Expr) -> Result<Literal, RuntimeError> {
