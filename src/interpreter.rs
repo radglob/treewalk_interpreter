@@ -1,26 +1,30 @@
+use std::error::Error;
 use std::fs;
 use std::io::{stderr, Write};
 use std::process::exit;
-use std::error::Error;
 
+use crate::environment::Environment;
 use crate::error::RuntimeError;
 use crate::expr::Expr;
 use crate::parser::Parser;
 use crate::scanner::Scanner;
+use crate::stmt::Stmt;
 use crate::token::Literal;
 use crate::token::TokenType;
-use crate::stmt::Stmt;
-use crate::environment::Environment;
 
 pub struct Interpreter {
     had_error: bool,
     had_runtime_error: bool,
-    environment: Environment
+    environment: Environment,
 }
 
 impl Interpreter {
     pub fn default() -> Self {
-        Self { had_error: false, had_runtime_error: false, environment: Environment::new() }
+        Self {
+            had_error: false,
+            had_runtime_error: false,
+            environment: Environment::new(),
+        }
     }
 
     pub fn run_file(&mut self, path: &str) -> Result<(), Box<dyn Error>> {
@@ -76,7 +80,12 @@ impl Interpreter {
     }
 
     fn runtime_error(&mut self, runtime_error: RuntimeError) -> Result<(), std::io::Error> {
-        writeln!(stderr(), "{}\n[line {}]", runtime_error.message, runtime_error.token.line)?;
+        writeln!(
+            stderr(),
+            "{}\n[line {}]",
+            runtime_error.message,
+            runtime_error.token.line
+        )?;
         self.had_runtime_error = true;
         Ok(())
     }
@@ -96,7 +105,7 @@ impl Interpreter {
         match stmt {
             Stmt::Expression(expr) => {
                 let value = self.evaluate(expr)?;
-                println!("{}", self.stringify(value)); 
+                println!("{}", self.stringify(value));
                 Ok(())
             }
             Stmt::Print(expr) => {
@@ -105,11 +114,21 @@ impl Interpreter {
                 Ok(())
             }
             Stmt::Var(token, initializer) => {
-                let mut value = Literal::Nil;
+                let mut value = None;
                 if let Some(expr) = initializer {
-                    value = self.evaluate(expr)?
+                    value = Some(self.evaluate(expr)?)
                 }
-                self.environment.define(token.lexeme, value);
+
+                match value {
+                    None => {
+                        return Err(RuntimeError::new(
+                            token,
+                            "Must assign value to new variable.".to_string(),
+                        ))
+                    }
+                    Some(v) => self.environment.define(token.lexeme, v),
+                }
+
                 Ok(())
             }
             Stmt::Block(stmts) => {
@@ -119,7 +138,11 @@ impl Interpreter {
         }
     }
 
-    fn evaluate_block(&mut self, stmts: Vec<Stmt>, environment: Environment) -> Result<(), RuntimeError> {
+    fn evaluate_block(
+        &mut self,
+        stmts: Vec<Stmt>,
+        environment: Environment,
+    ) -> Result<(), RuntimeError> {
         let previous = self.environment.clone();
         self.environment = environment;
         for stmt in stmts {
@@ -150,7 +173,7 @@ impl Interpreter {
                         }
                     }
                     (_, Err(err)) => Err(err),
-                    _ => panic!()
+                    _ => panic!(),
                 }
             }
             Expr::Assign(token, value) => {
@@ -172,7 +195,10 @@ impl Interpreter {
                     )),
                     (TokenType::Slash, Ok(Literal::Number(a)), Ok(Literal::Number(b))) => {
                         if b == 0.0 {
-                            Err(RuntimeError::new(operator, "Cannot divide by zero".to_string()))
+                            Err(RuntimeError::new(
+                                operator,
+                                "Cannot divide by zero".to_string(),
+                            ))
                         } else {
                             Ok(Literal::Number(a / b))
                         }
@@ -214,8 +240,8 @@ impl Interpreter {
                         Ok(Literal::Number(a % b))
                     }
                     (TokenType::Percent, _, _) => Err(RuntimeError::new(
-                            operator,
-                            "Operands must be numbers".to_string()
+                        operator,
+                        "Operands must be numbers".to_string(),
                     )),
                     (TokenType::Greater, Ok(Literal::Number(a)), Ok(Literal::Number(b))) => {
                         Ok(Literal::from(a > b))
@@ -245,8 +271,12 @@ impl Interpreter {
                         operator,
                         "Operands must be numbers.".to_string(),
                     )),
-                    (TokenType::BangEqual, Ok(l1), Ok(l2)) => Ok(Literal::from(!self.is_equal(&l1, &l2))),
-                    (TokenType::EqualEqual, Ok(l1), Ok(l2)) => Ok(Literal::from(self.is_equal(&l1, &l2))),
+                    (TokenType::BangEqual, Ok(l1), Ok(l2)) => {
+                        Ok(Literal::from(!self.is_equal(&l1, &l2)))
+                    }
+                    (TokenType::EqualEqual, Ok(l1), Ok(l2)) => {
+                        Ok(Literal::from(self.is_equal(&l1, &l2)))
+                    }
                     (_, Err(err), _) => Err(err),
                     (_, _, Err(err)) => Err(err),
 
@@ -284,13 +314,13 @@ impl Interpreter {
             Literal::Number(n) => {
                 let mut text = n.to_string();
                 if text.ends_with(".0") {
-                    text = text[0 .. text.len() - 2].to_string();
+                    text = text[0..text.len() - 2].to_string();
                 }
                 text
             }
             Literal::String(s) => s,
             Literal::True => "true".to_string(),
-            Literal::False => "false".to_string()
+            Literal::False => "false".to_string(),
         }
     }
 }
