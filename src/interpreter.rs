@@ -16,6 +16,7 @@ pub struct Interpreter {
     had_error: bool,
     had_runtime_error: bool,
     environment: Environment,
+    repl: bool,
 }
 
 impl Interpreter {
@@ -24,6 +25,7 @@ impl Interpreter {
             had_error: false,
             had_runtime_error: false,
             environment: Environment::new(),
+            repl: false,
         }
     }
 
@@ -43,6 +45,7 @@ impl Interpreter {
     }
 
     fn run(&mut self, source: String) -> Result<(), Box<dyn Error>> {
+        self.repl = true;
         let mut scanner = Scanner::new(source);
         if let Err(err) = scanner.scan_tokens() {
             self.error(scanner.line as u32, err.to_string())?;
@@ -104,8 +107,17 @@ impl Interpreter {
     fn execute(&mut self, stmt: Stmt) -> Result<(), RuntimeError> {
         match stmt {
             Stmt::Expression(expr) => {
-                let value = self.evaluate(expr)?;
-                println!("{}", self.stringify(value));
+                match expr {
+                    Expr::Assign(_, _) => {
+                        self.evaluate(expr)?;
+                    }
+                    _ => {
+                        let value = self.evaluate(expr)?;
+                        if self.repl {
+                            println!("{}", self.stringify(value))
+                        }
+                    }
+                };
                 Ok(())
             }
             Stmt::Print(expr) => {
@@ -132,16 +144,16 @@ impl Interpreter {
                 Ok(())
             }
             Stmt::While(condition, body) => {
-                let value = self.evaluate(condition)?;
-                while self.is_truthy(&value) {
-                    self.execute((*body).clone())?
-                };
+                if let Some(condition) = condition {
+                    let mut value = self.evaluate(condition.clone())?;
+                    while self.is_truthy(&value) {
+                        self.execute((*body).clone())?;
+                        value = self.evaluate(condition.clone())?;
+                    }
+                }
                 Ok(())
             }
-            Stmt::Block(stmts) => {
-                self.evaluate_block(stmts, Environment::with_enclosing(self.environment.clone()))?;
-                Ok(())
-            }
+            Stmt::Block(stmts) => self.evaluate_block(stmts),
             Stmt::If(condition, then_branch, else_branch) => {
                 let value = self.evaluate(condition)?;
                 if self.is_truthy(&value) {
@@ -154,17 +166,15 @@ impl Interpreter {
         }
     }
 
-    fn evaluate_block(
-        &mut self,
-        stmts: Vec<Stmt>,
-        environment: Environment,
-    ) -> Result<(), RuntimeError> {
-        let previous = self.environment.clone();
-        self.environment = environment;
+    fn evaluate_block(&mut self, stmts: Vec<Stmt>) -> Result<(), RuntimeError> {
+        self.environment = Environment::with_enclosing(self.environment.clone());
         for stmt in stmts {
             self.execute(stmt)?;
         }
-        self.environment = previous;
+
+        if let Some(enclosing) = self.environment.enclosing.clone() {
+            self.environment = *enclosing;
+        }
         Ok(())
     }
 
@@ -202,9 +212,13 @@ impl Interpreter {
                 let left = self.evaluate(*left)?;
 
                 if operator.token_type == TokenType::Or {
-                    if self.is_truthy(&left) { return Ok(left) }
+                    if self.is_truthy(&left) {
+                        return Ok(left);
+                    }
                 } else {
-                    if !self.is_truthy(&left) { return Ok(left) }
+                    if !self.is_truthy(&left) {
+                        return Ok(left);
+                    }
                 }
 
                 self.evaluate(*right)
@@ -259,10 +273,13 @@ impl Interpreter {
                         s.push_str(&s2);
                         Ok(Literal::String(s))
                     }
-                    (TokenType::Plus, _, _) => Err(RuntimeError::new(
-                        operator,
-                        "Operands must be two numbers or two strings.".to_string(),
-                    )),
+                    (TokenType::Plus, Ok(l1), Ok(l2)) => {
+                        println!("l1: {:?}, l2: {:?}", l1, l2);
+                        Err(RuntimeError::new(
+                            operator,
+                            "Operands must be two numbers or two strings.".to_string(),
+                        ))
+                    }
                     (TokenType::Percent, Ok(Literal::Number(a)), Ok(Literal::Number(b))) => {
                         Ok(Literal::Number(a % b))
                     }

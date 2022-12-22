@@ -1,6 +1,6 @@
 use crate::token::{Literal,Token};
 
-#[derive(Clone)]
+#[derive(Debug,Clone)]
 pub enum Expr {
     Literal(Literal),
     Logical(Box<Expr>, Token, Box<Expr>),
