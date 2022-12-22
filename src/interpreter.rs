@@ -10,15 +10,17 @@ use crate::scanner::Scanner;
 use crate::token::Literal;
 use crate::token::TokenType;
 use crate::stmt::Stmt;
+use crate::environment::Environment;
 
 pub struct Interpreter {
     had_error: bool,
-    had_runtime_error: bool
+    had_runtime_error: bool,
+    environment: Environment
 }
 
 impl Interpreter {
     pub fn default() -> Self {
-        Self { had_error: false, had_runtime_error: false }
+        Self { had_error: false, had_runtime_error: false, environment: Environment::new() }
     }
 
     pub fn run_file(&mut self, path: &str) -> Result<(), Box<dyn Error>> {
@@ -90,7 +92,7 @@ impl Interpreter {
         Ok(())
     }
 
-    fn execute(&self, stmt: Stmt) -> Result<(), RuntimeError> {
+    fn execute(&mut self, stmt: Stmt) -> Result<(), RuntimeError> {
         match stmt {
             Stmt::Expression(expr) => {
                 self.evaluate(expr)?;
@@ -99,6 +101,14 @@ impl Interpreter {
             Stmt::Print(expr) => {
                 let value = self.evaluate(expr)?;
                 println!("{}", self.stringify(value));
+                Ok(())
+            }
+            Stmt::Var(token, initializer) => {
+                let mut value = Literal::Nil;
+                if let Some(expr) = initializer {
+                    value = self.evaluate(expr)?
+                }
+                self.environment.define(token.lexeme, value);
                 Ok(())
             }
         }
@@ -128,6 +138,7 @@ impl Interpreter {
                     _ => panic!()
                 }
             }
+            Expr::Variable(name) => self.environment.get(name),
             Expr::Binary(left, operator, right) => {
                 let left = self.evaluate(*left);
                 let right = self.evaluate(*right);
@@ -240,7 +251,7 @@ impl Interpreter {
         }
     }
 
-    fn interpret(&self, stmts: Vec<Stmt>) -> Result<(), RuntimeError> {
+    fn interpret(&mut self, stmts: Vec<Stmt>) -> Result<(), RuntimeError> {
         for stmt in stmts {
             self.execute(stmt)?
         }

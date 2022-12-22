@@ -10,6 +10,8 @@ pub mod parser;
 pub mod scanner;
 pub mod stmt;
 pub mod token;
+pub mod declaration;
+pub mod environment;
 
 use crate::interpreter::Interpreter;
 

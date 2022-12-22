@@ -140,6 +140,9 @@ impl Parser {
             self.consume(RightParen, "Expect ')' after expression")?;
             return Ok(Expr::Grouping(Box::new(expr)));
         }
+        if self.matches(vec![Identifier]) {
+            return Ok(Expr::Variable(self.previous()))
+        }
 
         Err(ParserError::new(
             self.peek(),
@@ -170,10 +173,25 @@ impl Parser {
     pub fn parse(&mut self) -> Result<Vec<Stmt>, Box<dyn Error>> {
         let mut statements = vec![];
         while !self.is_at_end() {
-            let statement = self.statement()?;
+            let statement = self.declaration()?;
             statements.push(statement);
         }
         Ok(statements)
+    }
+
+    fn declaration(&mut self) -> Result<Stmt, Box<dyn Error>> {
+        if self.matches(vec![Var]) { return self.var_declaration() }
+        self.statement()
+    }
+
+    fn var_declaration(&mut self) -> Result<Stmt, Box<dyn Error>> {
+        let name = self.consume(Identifier, "Expect variable name.")?;
+
+        let mut initializer = None;
+        if self.matches(vec![Equal]) { initializer = Some(self.expression()?) }
+
+        self.consume(Semicolon, "Expect ';' after variable declaration.")?;
+        Ok(Stmt::Var(name, initializer))
     }
 
     fn statement(&mut self) -> Result<Stmt, Box<dyn Error>> {
