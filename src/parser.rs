@@ -290,7 +290,7 @@ impl Parser {
             body = Stmt::Block(vec![body, Stmt::Expression(increment)]);
         }
 
-        if let None = condition {
+        if condition.is_none() {
             condition = Some(Expr::Literal(Literal::True));
         }
 

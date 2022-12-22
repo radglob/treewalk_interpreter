@@ -3,6 +3,12 @@ use crate::token::Literal;
 
 pub struct AstPrinter;
 
+impl Default for AstPrinter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AstPrinter {
     pub fn new() -> Self {
         Self

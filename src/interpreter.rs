@@ -233,14 +233,12 @@ impl Interpreter {
             Expr::Logical(left, operator, right) => {
                 let left = self.evaluate(*left)?;
 
-                if operator.token_type == TokenType::Or {
-                    if self.is_truthy(&left) {
-                        return Ok(left);
-                    }
-                } else {
-                    if !self.is_truthy(&left) {
-                        return Ok(left);
-                    }
+                if operator.token_type == TokenType::Or && self.is_truthy(&left) {
+                    return Ok(left);
+                }
+
+                if !self.is_truthy(&left) {
+                    return Ok(left);
                 }
 
                 self.evaluate(*right)
@@ -280,13 +278,11 @@ impl Interpreter {
                     (TokenType::Plus, Ok(Literal::Number(a)), Ok(Literal::Number(b))) => {
                         Ok(Literal::Number(a + b))
                     }
-                    (TokenType::Plus, Ok(Literal::String(s1)), Ok(Literal::String(s2))) => {
-                        let mut s = String::from(s1);
+                    (TokenType::Plus, Ok(Literal::String(mut s)), Ok(Literal::String(s2))) => {
                         s.push_str(&s2);
                         Ok(Literal::String(s))
                     }
-                    (TokenType::Plus, Ok(Literal::String(s1)), Ok(literal)) => {
-                        let mut s = String::from(s1);
+                    (TokenType::Plus, Ok(Literal::String(mut s)), Ok(literal)) => {
                         s.push_str(&literal.to_string());
                         Ok(Literal::String(s))
                     }
@@ -353,10 +349,7 @@ impl Interpreter {
     }
 
     fn is_truthy(&self, v: &Literal) -> bool {
-        match v {
-            Literal::Nil | Literal::False => false,
-            _ => true,
-        }
+        !matches!(v, Literal::Nil | Literal::False)
     }
 
     fn is_equal(&self, a: &Literal, b: &Literal) -> bool {

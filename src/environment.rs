@@ -9,6 +9,12 @@ pub struct Environment {
     values: HashMap<String, Literal>
 }
 
+impl Default for Environment {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Environment {
     pub fn new() -> Self {
         Self { enclosing: None, values: HashMap::new() }
@@ -32,7 +38,7 @@ impl Environment {
             Some(enclosing) => enclosing.assign(name, value),
             None => {
                 let message = format!("Undefined variable {}.", name.lexeme);
-                return Err(RuntimeError::new(name, message))
+                Err(RuntimeError::new(name, message))
             }
         }
     }

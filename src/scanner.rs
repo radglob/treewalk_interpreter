@@ -15,7 +15,7 @@ impl StringFuncs for String {
     }
 
     fn char_at(&self, index: usize) -> char {
-        self.bytes().nth(index).unwrap() as char
+        *self.as_bytes().get(index).unwrap() as char
     }
 }
 
@@ -188,7 +188,7 @@ impl Scanner {
             }
 
             _ => {
-                if c.is_digit(10) {
+                if c.is_ascii_digit() {
                     self.number()
                 } else if c.is_ascii_alphabetic() || c == '_' {
                     self.identifier()
@@ -222,7 +222,7 @@ impl Scanner {
         if c != expected { return false; }
 
         self.current += 1;
-        return true;
+        true
     }
 
     fn peek(&self) -> char {
@@ -256,12 +256,12 @@ impl Scanner {
     }
 
     fn number(&mut self) -> Result<(), std::io::Error> {
-        while self.peek().is_digit(10) { self.advance(); }
+        while self.peek().is_ascii_digit() { self.advance(); }
 
-        if self.peek() == '.' && self.peek_next().is_digit(10) {
+        if self.peek() == '.' && self.peek_next().is_ascii_digit() {
             self.advance();
 
-            while self.peek().is_digit(10) { self.advance(); }
+            while self.peek().is_ascii_digit() { self.advance(); }
         }
         let value = &self.source.substring(self.start, self.current);
         let n: f64 = value.parse::<f64>().unwrap();
