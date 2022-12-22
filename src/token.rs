@@ -89,6 +89,18 @@ impl From<String> for Literal {
     }
 }
 
+impl ToString for Literal {
+    fn to_string(&self) -> String {
+        match self {
+            Literal::Nil => "nil".to_string(),
+            Literal::True => "true".to_string(),
+            Literal::False => "false".to_string(),
+            Literal::String(s) => s.to_string(),
+            Literal::Number(n) => n.to_string()
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Token {
     pub token_type: TokenType,

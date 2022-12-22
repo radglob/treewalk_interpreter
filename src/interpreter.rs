@@ -150,6 +150,16 @@ impl Interpreter {
                         s.push_str(&s2);
                         Ok(Literal::String(s))
                     }
+                    (TokenType::Plus, Ok(Literal::String(s1)), Ok(literal)) => {
+                        let mut s = String::from(s1);
+                        s.push_str(&literal.to_string());
+                        Ok(Literal::String(s))
+                    }
+                    (TokenType::Plus, Ok(literal), Ok(Literal::String(s2))) => {
+                        let mut s = literal.to_string();
+                        s.push_str(&s2);
+                        Ok(Literal::String(s))
+                    }
                     (TokenType::Plus, _, _) => Err(RuntimeError::new(
                         operator,
                         "Operands must be two numbers or two strings.".to_string(),
