@@ -95,7 +95,8 @@ impl Interpreter {
     fn execute(&mut self, stmt: Stmt) -> Result<(), RuntimeError> {
         match stmt {
             Stmt::Expression(expr) => {
-                self.evaluate(expr)?;
+                let value = self.evaluate(expr)?;
+                println!("{}", self.stringify(value)); 
                 Ok(())
             }
             Stmt::Print(expr) => {
