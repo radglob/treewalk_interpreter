@@ -1,5 +1,7 @@
 use std::fmt;
 
+use crate::native_function::NativeFunction;
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum TokenType {
     // Single character tokens
@@ -59,13 +61,14 @@ impl fmt::Display for TokenType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Literal {
     Number(f64),
     String(String),
     True,
     False,
     Nil,
+    NativeFunction(NativeFunction),
 }
 
 impl From<bool> for Literal {
@@ -97,7 +100,8 @@ impl ToString for Literal {
             Literal::True => "true".to_string(),
             Literal::False => "false".to_string(),
             Literal::String(s) => s.to_string(),
-            Literal::Number(n) => n.to_string()
+            Literal::Number(n) => n.to_string(),
+            Literal::NativeFunction(f) => format!("{}/{}", f.name, f.arity),
         }
     }
 }
@@ -108,6 +112,17 @@ pub struct Token {
     pub lexeme: String,
     pub literal: Option<Literal>,
     pub line: u32,
+}
+
+impl Default for Token {
+    fn default() -> Self {
+        Self {
+            token_type: TokenType::Nil,
+            lexeme: "".to_string(),
+            literal: None,
+            line: 0
+        }
+    }
 }
 
 impl Token {

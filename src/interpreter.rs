@@ -3,9 +3,11 @@ use std::fs;
 use std::io::{stderr, Write};
 use std::process::exit;
 
+use crate::callable::as_callable;
 use crate::environment::Environment;
 use crate::error::RuntimeError;
 use crate::expr::Expr;
+use crate::native_function::*;
 use crate::parser::Parser;
 use crate::scanner::Scanner;
 use crate::stmt::Stmt;
@@ -22,10 +24,19 @@ pub struct Interpreter {
 
 impl Interpreter {
     pub fn default() -> Self {
+        let mut environment = Environment::new();
+        let clock = Literal::NativeFunction(
+            NativeFunction {
+                name: "clock".to_string(),
+                arity: 0,
+                callable: clock
+            }
+        );
+        environment.define("clock".to_string(), clock);
         Self {
             had_error: false,
             had_runtime_error: false,
-            environment: Environment::new(),
+            environment,
             repl: false,
             loop_count: 0,
         }
@@ -156,7 +167,7 @@ impl Interpreter {
                                 if err.message == "BREAK" {
                                     break;
                                 }
-                                return Err(err)
+                                return Err(err);
                             }
                         }
                         value = self.evaluate(condition.clone())?;
@@ -242,6 +253,32 @@ impl Interpreter {
                 }
 
                 self.evaluate(*right)
+            }
+            Expr::Call(callee, paren, arguments) => {
+                let callee = self.evaluate(*callee)?;
+                let mut args = vec![];
+                for argument in *arguments {
+                    args.push(self.evaluate(argument)?);
+                }
+
+                let func = as_callable(&callee);
+                if func.is_none() {
+                    return Err(RuntimeError::new(
+                        paren,
+                        "Can only call functions and classes.".to_string(),
+                    ));
+                } else {
+                    let func = func.unwrap();
+                    if args.len() != func.arity() as usize {
+                        let message = format!(
+                            "Expected {} arguments but got {}.",
+                            func.arity(),
+                            args.len()
+                        );
+                        return Err(RuntimeError::new(paren, message));
+                    }
+                    func.call(&args)
+                }
             }
             Expr::Binary(left, operator, right) => {
                 let left = self.evaluate(*left);
@@ -356,7 +393,14 @@ impl Interpreter {
         match (a, b) {
             (Literal::Nil, Literal::Nil) => true,
             (Literal::Nil, _) => false,
-            _ => a == b,
+            (Literal::True, Literal::True) => true,
+            (Literal::False, Literal::False) => true,
+            (Literal::Number(i), Literal::Number(j)) => i == j,
+            (Literal::String(s1), Literal::String(s2)) => s1 == s2,
+            (Literal::NativeFunction(f1), Literal::NativeFunction(f2)) => {
+                f1.name == f2.name && f1.arity == f2.arity
+            }
+            _ => false,
         }
     }
 
@@ -380,6 +424,7 @@ impl Interpreter {
             Literal::String(s) => s,
             Literal::True => "true".to_string(),
             Literal::False => "false".to_string(),
+            Literal::NativeFunction(f) => format!("{}/{}", f.name, f.arity),
         }
     }
 }

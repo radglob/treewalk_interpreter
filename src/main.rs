@@ -13,6 +13,8 @@ pub mod stmt;
 pub mod token;
 pub mod declaration;
 pub mod environment;
+pub mod native_function;
+pub mod callable;
 
 use crate::interpreter::Interpreter;
 

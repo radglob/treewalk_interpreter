@@ -4,6 +4,8 @@ use crate::stmt::Stmt;
 use crate::token::TokenType::{self, *};
 use crate::token::{Literal, Token};
 
+type ParseResult = Result<Expr, ParserError>;
+
 pub struct Parser {
     pub tokens: Vec<Token>,
     pub current: usize,
@@ -21,11 +23,11 @@ impl Parser {
         Self { tokens, current: 0 }
     }
 
-    fn expression(&mut self) -> Result<Expr, ParserError> {
+    fn expression(&mut self) -> ParseResult {
         self.assignment()
     }
 
-    fn assignment(&mut self) -> Result<Expr, ParserError> {
+    fn assignment(&mut self) -> ParseResult {
         let expr = self.or()?;
         if self.matches(vec![Equal]) {
             let equals = self.previous();
@@ -43,7 +45,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn or(&mut self) -> Result<Expr, ParserError> {
+    fn or(&mut self) -> ParseResult {
         let mut expr = self.and()?;
         while self.matches(vec![Or]) {
             let operator = self.previous();
@@ -53,7 +55,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn and(&mut self) -> Result<Expr, ParserError> {
+    fn and(&mut self) -> ParseResult {
         let mut expr = self.equality()?;
 
         while self.matches(vec![And]) {
@@ -65,7 +67,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn equality(&mut self) -> Result<Expr, ParserError> {
+    fn equality(&mut self) -> ParseResult {
         let mut expr = self.comparison()?;
         while self.matches(vec![BangEqual, EqualEqual]) {
             let operator: Token = self.previous();
@@ -112,7 +114,7 @@ impl Parser {
         self.tokens.get(self.current - 1).unwrap().clone()
     }
 
-    fn comparison(&mut self) -> Result<Expr, ParserError> {
+    fn comparison(&mut self) -> ParseResult {
         let mut expr = self.term()?;
         while self.matches(vec![Greater, GreaterEqual, Less, LessEqual, Percent]) {
             let operator = self.previous();
@@ -122,7 +124,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn term(&mut self) -> Result<Expr, ParserError> {
+    fn term(&mut self) -> ParseResult {
         let mut expr = self.factor()?;
 
         while self.matches(vec![Minus, Plus]) {
@@ -134,7 +136,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn factor(&mut self) -> Result<Expr, ParserError> {
+    fn factor(&mut self) -> ParseResult {
         let mut expr = self.unary()?;
 
         while self.matches(vec![Slash, Star]) {
@@ -146,17 +148,49 @@ impl Parser {
         Ok(expr)
     }
 
-    fn unary(&mut self) -> Result<Expr, ParserError> {
+    fn unary(&mut self) -> ParseResult {
         if self.matches(vec![Bang, Minus]) {
             let operator = self.previous();
             let right = self.unary()?;
             return Ok(Expr::Unary(operator, Box::new(right)));
         }
 
-        self.primary()
+        self.call()
     }
 
-    fn primary(&mut self) -> Result<Expr, ParserError> {
+    fn call(&mut self) -> ParseResult {
+        let mut expr = self.primary()?;
+
+        loop {
+            if self.matches(vec![LeftParen]) {
+                expr = self.finish_call(expr)?;
+            } else {
+                break;
+            }
+        }
+
+        Ok(expr)
+    }
+
+    fn finish_call(&mut self, callee: Expr) -> ParseResult {
+        let mut arguments: Vec<Expr> = vec![];
+        if !self.check(RightParen) {
+            loop {
+                if arguments.len() >= 255 {
+                    return Err(ParserError::new(self.peek(), "Can't have more than 255 arguments".to_string()))
+                }
+                arguments.push(self.expression()?);
+                if !self.matches(vec![Comma]) {
+                    break;
+                }
+            }
+        }
+
+        let paren = self.consume(RightParen, "Expect ')' after arguments.")?;
+        Ok(Expr::Call(Box::new(callee), paren, Box::new(arguments)))
+    }
+
+    fn primary(&mut self) -> ParseResult {
         if self.matches(vec![False]) {
             return Ok(Expr::Literal(Literal::False));
         }

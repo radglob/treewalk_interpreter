@@ -28,7 +28,21 @@ impl AstPrinter {
             Expr::Grouping(expr) => self.parenthesize("group".to_string(), vec![*expr]),
             Expr::Variable(token) => format!("(var {})", token.lexeme),
             Expr::Assign(token, value) => format!("(var {} {})", token.lexeme, self.output(*value)),
-            Expr::Logical(left, operator, right) => format!("({} {} {})", operator.lexeme, self.output(*left), self.output(*right))
+            Expr::Logical(left, operator, right) => format!(
+                "({} {} {})",
+                operator.lexeme,
+                self.output(*left),
+                self.output(*right)
+            ),
+            Expr::Call(callee, _, arguments) => {
+                let mut s = self.output(*callee);
+                for arg in *arguments {
+                    s.push_str(&self.output(arg));
+                    s.push(' ');
+                }
+                s.push(')');
+                s
+            }
         }
     }
 
@@ -44,12 +58,6 @@ impl AstPrinter {
     }
 
     fn parenthesize_literal(&self, literal: Literal) -> String {
-        match literal {
-            Literal::Number(n) => n.to_string(),
-            Literal::String(s) => s,
-            Literal::True => "true".to_string(),
-            Literal::False => "false".to_string(),
-            Literal::Nil => "nil".to_string(),
-        }
+        literal.to_string()
     }
 }
