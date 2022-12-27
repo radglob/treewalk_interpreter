@@ -5,7 +5,7 @@ use std::process::exit;
 
 use crate::callable::as_callable;
 use crate::environment::Environment;
-use crate::error::RuntimeError;
+use crate::error::*;
 use crate::expr::Expr;
 use crate::native_function::*;
 use crate::lox_function::LoxFunction;
@@ -71,19 +71,24 @@ impl Interpreter {
     }
 
     fn run(&mut self, source: String) -> Result<(), Box<dyn Error>> {
-        self.repl = true;
         let mut scanner = Scanner::new(source);
         if let Err(err) = scanner.scan_tokens() {
             self.error(scanner.line as u32, err.to_string())?;
         }
 
         let mut parser = Parser::new(scanner.tokens);
-        let statements = parser.parse()?;
-
-        if let Err(err) = self.interpret(statements) {
-            self.runtime_error(err)?;
-        };
-
+        let statements = parser.parse();
+        match statements {
+            Err(err) => {
+                parser.synchronize();
+                self.parser_error(err)?
+            },
+            Ok(statements) => {
+                if let Err(err) = self.interpret(statements) {
+                    self.runtime_error(err)?;
+                };
+            }
+        }
         Ok(())
     }
 
@@ -106,6 +111,15 @@ impl Interpreter {
     fn error(&mut self, line: u32, message: String) -> Result<(), std::io::Error> {
         self.report(line, "".to_string(), message)?;
         Ok(())
+    }
+
+    fn parser_error(&mut self, parser_error: ParserError) -> Result<(), std::io::Error> {
+        writeln!(
+            stderr(),
+            "{}\n[line {}]",
+            parser_error.message,
+            parser_error.token.line
+        )
     }
 
     fn runtime_error(&mut self, runtime_error: RuntimeError) -> Result<(), std::io::Error> {

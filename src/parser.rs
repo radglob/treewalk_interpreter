@@ -230,7 +230,7 @@ impl Parser {
         Err(ParserError::new(self.peek(), message.to_string()))
     }
 
-    fn synchronize(&mut self) {
+    pub fn synchronize(&mut self) {
         self.advance();
         while !self.is_at_end() {
             if self.previous().token_type == Semicolon {

@@ -6,7 +6,7 @@ use crate::token::Token;
 #[derive(Debug)]
 pub struct ParserError {
     pub token: Token,
-    message: String,
+    pub message: String,
 }
 
 impl ParserError {
