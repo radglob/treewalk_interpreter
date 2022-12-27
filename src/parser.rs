@@ -4,7 +4,7 @@ use crate::stmt::Stmt;
 use crate::token::TokenType::{self, *};
 use crate::token::{Literal, Token};
 
-type ParseResult = Result<Expr, ParserError>;
+type ParseResult<T> = Result<T, ParserError>;
 
 pub struct Parser {
     pub tokens: Vec<Token>,
@@ -23,11 +23,11 @@ impl Parser {
         Self { tokens, current: 0 }
     }
 
-    fn expression(&mut self) -> ParseResult {
+    fn expression(&mut self) -> ParseResult<Expr> {
         self.assignment()
     }
 
-    fn assignment(&mut self) -> ParseResult {
+    fn assignment(&mut self) -> ParseResult<Expr> {
         let expr = self.or()?;
         if self.matches(vec![Equal]) {
             let equals = self.previous();
@@ -45,7 +45,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn or(&mut self) -> ParseResult {
+    fn or(&mut self) -> ParseResult<Expr> {
         let mut expr = self.and()?;
         while self.matches(vec![Or]) {
             let operator = self.previous();
@@ -55,7 +55,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn and(&mut self) -> ParseResult {
+    fn and(&mut self) -> ParseResult<Expr> {
         let mut expr = self.equality()?;
 
         while self.matches(vec![And]) {
@@ -67,7 +67,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn equality(&mut self) -> ParseResult {
+    fn equality(&mut self) -> ParseResult<Expr> {
         let mut expr = self.comparison()?;
         while self.matches(vec![BangEqual, EqualEqual]) {
             let operator: Token = self.previous();
@@ -114,7 +114,7 @@ impl Parser {
         self.tokens.get(self.current - 1).unwrap().clone()
     }
 
-    fn comparison(&mut self) -> ParseResult {
+    fn comparison(&mut self) -> ParseResult<Expr> {
         let mut expr = self.term()?;
         while self.matches(vec![Greater, GreaterEqual, Less, LessEqual, Percent]) {
             let operator = self.previous();
@@ -124,7 +124,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn term(&mut self) -> ParseResult {
+    fn term(&mut self) -> ParseResult<Expr> {
         let mut expr = self.factor()?;
 
         while self.matches(vec![Minus, Plus]) {
@@ -136,7 +136,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn factor(&mut self) -> ParseResult {
+    fn factor(&mut self) -> ParseResult<Expr> {
         let mut expr = self.unary()?;
 
         while self.matches(vec![Slash, Star]) {
@@ -148,7 +148,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn unary(&mut self) -> ParseResult {
+    fn unary(&mut self) -> ParseResult<Expr> {
         if self.matches(vec![Bang, Minus]) {
             let operator = self.previous();
             let right = self.unary()?;
@@ -158,7 +158,7 @@ impl Parser {
         self.call()
     }
 
-    fn call(&mut self) -> ParseResult {
+    fn call(&mut self) -> ParseResult<Expr> {
         let mut expr = self.primary()?;
 
         loop {
@@ -172,12 +172,15 @@ impl Parser {
         Ok(expr)
     }
 
-    fn finish_call(&mut self, callee: Expr) -> ParseResult {
+    fn finish_call(&mut self, callee: Expr) -> ParseResult<Expr> {
         let mut arguments: Vec<Expr> = vec![];
         if !self.check(RightParen) {
             loop {
                 if arguments.len() >= 255 {
-                    return Err(ParserError::new(self.peek(), "Can't have more than 255 arguments".to_string()))
+                    return Err(ParserError::new(
+                        self.peek(),
+                        "Can't have more than 255 arguments".to_string(),
+                    ));
                 }
                 arguments.push(self.expression()?);
                 if !self.matches(vec![Comma]) {
@@ -190,7 +193,7 @@ impl Parser {
         Ok(Expr::Call(Box::new(callee), paren, Box::new(arguments)))
     }
 
-    fn primary(&mut self) -> ParseResult {
+    fn primary(&mut self) -> ParseResult<Expr> {
         if self.matches(vec![False]) {
             return Ok(Expr::Literal(Literal::False));
         }
@@ -241,7 +244,7 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> Result<Vec<Stmt>, ParserError> {
+    pub fn parse(&mut self) -> ParseResult<Vec<Stmt>> {
         let mut statements = vec![];
         while !self.is_at_end() {
             let statement = self.declaration()?;
@@ -250,14 +253,43 @@ impl Parser {
         Ok(statements)
     }
 
-    fn declaration(&mut self) -> Result<Stmt, ParserError> {
+    fn declaration(&mut self) -> ParseResult<Stmt> {
+        if self.matches(vec![Fun]) {
+            return self.function("function");
+        }
+
         if self.matches(vec![Var]) {
             return self.var_declaration();
         }
         self.statement()
     }
 
-    fn var_declaration(&mut self) -> Result<Stmt, ParserError> {
+    fn function(&mut self, kind: &str) -> ParseResult<Stmt> {
+        let name = self.consume(Identifier, &format!("Expect {} name.", kind))?;
+        self.consume(LeftParen, &format!("Expect '(' after {} name.", kind))?;
+        let mut parameters = vec![];
+        if !self.check(RightParen) {
+            loop {
+                if parameters.len() >= 255 {
+                    return Err(ParserError::new(
+                        self.peek(),
+                        "Can't have more than 255 parameters.".to_string(),
+                    ));
+                }
+                parameters.push(self.consume(Identifier, "Expect parameter name.")?);
+
+                if !self.matches(vec![Comma]) {
+                    break;
+                }
+            }
+        }
+        self.consume(RightParen, "Expect ')' after parameters.")?;
+        self.consume(LeftBrace, &format!("Expect '{{' before {} body.", kind))?;
+        let body = self.block()?;
+        Ok(Stmt::Function(name, parameters, Box::new(body)))
+    }
+
+    fn var_declaration(&mut self) -> ParseResult<Stmt> {
         let name = self.consume(Identifier, "Expect variable name.")?;
 
         let mut initializer = None;
@@ -269,7 +301,7 @@ impl Parser {
         Ok(Stmt::Var(name, initializer))
     }
 
-    fn statement(&mut self) -> Result<Stmt, ParserError> {
+    fn statement(&mut self) -> ParseResult<Stmt> {
         if self.matches(vec![For]) {
             return self.for_statement();
         }
@@ -296,7 +328,7 @@ impl Parser {
         self.expression_statement()
     }
 
-    fn for_statement(&mut self) -> Result<Stmt, ParserError> {
+    fn for_statement(&mut self) -> ParseResult<Stmt> {
         self.consume(LeftParen, "Expect '(' after 'for'.")?;
 
         let mut initializer: Option<Stmt> = None;
@@ -337,7 +369,7 @@ impl Parser {
         Ok(body)
     }
 
-    fn while_statement(&mut self) -> Result<Stmt, ParserError> {
+    fn while_statement(&mut self) -> ParseResult<Stmt> {
         self.consume(LeftParen, "expect '(' after 'while'.")?;
         let condition = self.expression()?;
         self.consume(RightParen, "Expect ')' after condition.")?;
@@ -345,13 +377,18 @@ impl Parser {
         Ok(Stmt::While(Some(condition), Box::new(body)))
     }
 
-    fn break_statement(&mut self) -> Result<Stmt, ParserError> {
+    fn break_statement(&mut self) -> ParseResult<Stmt> {
         self.consume(Semicolon, "Expect ';' after break keyword.")?;
-        let token = Token::new(TokenType::Break, "break".to_string(), None, self.current as u32);
+        let token = Token::new(
+            TokenType::Break,
+            "break".to_string(),
+            None,
+            self.current as u32,
+        );
         Ok(Stmt::Break(token))
     }
 
-    fn if_statement(&mut self) -> Result<Stmt, ParserError> {
+    fn if_statement(&mut self) -> ParseResult<Stmt> {
         self.consume(LeftParen, "Expect '(' after 'if'.")?;
         let condition = self.expression()?;
         self.consume(RightParen, "Expect ')' after if condition.")?;
@@ -369,7 +406,7 @@ impl Parser {
         ))
     }
 
-    fn block(&mut self) -> Result<Vec<Stmt>, ParserError> {
+    fn block(&mut self) -> ParseResult<Vec<Stmt>> {
         let mut stmts = vec![];
         while !self.check(RightBrace) && !self.is_at_end() {
             stmts.push(self.declaration()?)
@@ -379,13 +416,13 @@ impl Parser {
         Ok(stmts)
     }
 
-    fn print_statement(&mut self) -> Result<Stmt, ParserError> {
+    fn print_statement(&mut self) -> ParseResult<Stmt> {
         let value = self.expression()?;
         self.consume(Semicolon, "Expected ';' after value.")?;
         Ok(Stmt::Print(value))
     }
 
-    fn expression_statement(&mut self) -> Result<Stmt, ParserError> {
+    fn expression_statement(&mut self) -> ParseResult<Stmt> {
         let expr = self.expression()?;
         self.consume(Semicolon, "Expect ';' after expression.")?;
         Ok(Stmt::Expression(expr))

@@ -1,6 +1,7 @@
 use std::fmt;
 
 use crate::native_function::NativeFunction;
+use crate::lox_function::LoxFunction;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum TokenType {
@@ -69,6 +70,7 @@ pub enum Literal {
     False,
     Nil,
     NativeFunction(NativeFunction),
+    LoxFunction(LoxFunction)
 }
 
 impl From<bool> for Literal {
@@ -101,7 +103,8 @@ impl ToString for Literal {
             Literal::False => "false".to_string(),
             Literal::String(s) => s.to_string(),
             Literal::Number(n) => n.to_string(),
-            Literal::NativeFunction(f) => format!("{}/{}", f.name, f.arity),
+            Literal::NativeFunction(_) => "<native fn>".to_string(),
+            Literal::LoxFunction(f) => format!("<fn {}>", f.name)
         }
     }
 }

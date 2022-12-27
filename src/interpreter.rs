@@ -8,6 +8,7 @@ use crate::environment::Environment;
 use crate::error::RuntimeError;
 use crate::expr::Expr;
 use crate::native_function::*;
+use crate::lox_function::LoxFunction;
 use crate::parser::Parser;
 use crate::scanner::Scanner;
 use crate::stmt::Stmt;
@@ -17,13 +18,13 @@ use crate::token::TokenType;
 pub struct Interpreter {
     had_error: bool,
     had_runtime_error: bool,
-    environment: Environment,
+    pub environment: Environment,
     repl: bool,
     loop_count: u32,
 }
 
-impl Interpreter {
-    pub fn default() -> Self {
+impl Default for Interpreter {
+    fn default() -> Self {
         let mut environment = Environment::new();
         let clock = Literal::NativeFunction(
             NativeFunction {
@@ -39,6 +40,18 @@ impl Interpreter {
             environment,
             repl: false,
             loop_count: 0,
+        }
+    }
+}
+
+impl Interpreter {
+    pub fn new(environment: &Environment) -> Self {
+        Self {
+            had_error: false,
+            had_runtime_error: false,
+            environment: Environment::with_enclosing(environment.clone()),
+            loop_count: 0,
+            repl: false
         }
     }
 
@@ -196,10 +209,16 @@ impl Interpreter {
                     ))
                 }
             }
+            Stmt::Function(name, params, body) => {
+                let stmt = Stmt::Function(name.clone(), params, body);
+                let function = Literal::LoxFunction(LoxFunction::new(name.lexeme.clone(), stmt));
+                self.environment.define(name.lexeme, function);
+                Ok(())
+            }
         }
     }
 
-    fn evaluate_block(&mut self, stmts: Vec<Stmt>) -> Result<(), RuntimeError> {
+    pub fn evaluate_block(&mut self, stmts: Vec<Stmt>) -> Result<(), RuntimeError> {
         self.environment = Environment::with_enclosing(self.environment.clone());
         for stmt in stmts {
             self.execute(stmt)?;
@@ -277,7 +296,7 @@ impl Interpreter {
                         );
                         return Err(RuntimeError::new(paren, message));
                     }
-                    func.call(&args)
+                    func.call(self, &args)
                 }
             }
             Expr::Binary(left, operator, right) => {
@@ -424,7 +443,8 @@ impl Interpreter {
             Literal::String(s) => s,
             Literal::True => "true".to_string(),
             Literal::False => "false".to_string(),
-            Literal::NativeFunction(f) => format!("{}/{}", f.name, f.arity),
+            Literal::NativeFunction(_) => "<native fn>".to_string(),
+            Literal::LoxFunction(f) => format!("<fn {}>", f.name),
         }
     }
 }

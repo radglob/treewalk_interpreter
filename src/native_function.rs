@@ -5,12 +5,13 @@ use crate::callable::Callable;
 use crate::error::RuntimeError;
 use crate::token::Literal;
 use crate::token::Token;
+use crate::interpreter::Interpreter;
 
 #[derive(Clone)]
 pub struct NativeFunction {
     pub name: String,
     pub arity: u8,
-    pub callable: fn(&Vec<Literal>) -> Result<Literal, RuntimeError>,
+    pub callable: fn(interpreter: &Interpreter, &Vec<Literal>) -> Result<Literal, RuntimeError>,
 }
 
 impl fmt::Debug for NativeFunction {
@@ -24,12 +25,12 @@ impl Callable for NativeFunction {
         self.arity
     }
 
-    fn call(&self, args: &Vec<Literal>) -> Result<Literal, RuntimeError> {
-        (self.callable)(args)
+    fn call(&self, interpreter: &Interpreter, args: &Vec<Literal>) -> Result<Literal, RuntimeError> {
+        (self.callable)(interpreter, args)
     }
 }
 
-pub fn clock(args: &Vec<Literal>) -> Result<Literal, RuntimeError> {
+pub fn clock(_interpreter: &Interpreter, args: &Vec<Literal>) -> Result<Literal, RuntimeError> {
     if args.len() != 0 {
         let message = format!("Expected 0 args, received {}.", args.len());
         return Err(RuntimeError::new(Token::default(), message))
