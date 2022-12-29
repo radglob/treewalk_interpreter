@@ -1,5 +1,5 @@
 use crate::callable::Callable;
-use crate::error::{RuntimeException,RuntimeError};
+use crate::error::RuntimeException;
 use crate::interpreter::Interpreter;
 use crate::stmt::Stmt;
 use crate::token::Literal;
@@ -49,10 +49,10 @@ impl Callable for LoxFunction {
                     _ => return Ok(Literal::Nil)
                 }
             }
-            _ => Err(RuntimeException::Base(RuntimeError::new(
+            _ => Err(RuntimeException::base(
                 Token::default(),
                 "Invalid function declaration.".to_string(),
-            ))),
+            )),
         }
     }
 }

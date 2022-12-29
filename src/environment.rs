@@ -51,7 +51,7 @@ impl Environment {
                     Some(env) => (*env).get(name),
                     _ => {
                         let message = format!("Undefined variable {}.", name.lexeme);
-                        Err(RuntimeException::Base(RuntimeError::new(name, message)))
+                        Err(RuntimeException::base(name, message))
                     }
                 }
             }

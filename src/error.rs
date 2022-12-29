@@ -69,3 +69,15 @@ pub enum RuntimeException {
     Return(Return),
     Break
 }
+
+impl RuntimeException {
+    pub fn base(token: Token, message: String) -> Self {
+        let runtime_error = RuntimeError::new(token, message);
+        RuntimeException::Base(runtime_error)
+    }
+
+    pub fn r#return(value: Option<Literal>) -> Self {
+        let r = Return::new(value);
+        RuntimeException::Return(r)
+    }
+}

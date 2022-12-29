@@ -2,7 +2,7 @@ use std::fmt;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::callable::Callable;
-use crate::error::{RuntimeError,RuntimeException};
+use crate::error::RuntimeException;
 use crate::token::Literal;
 use crate::token::Token;
 use crate::interpreter::Interpreter;
@@ -33,7 +33,7 @@ impl Callable for NativeFunction {
 pub fn clock(_interpreter: &Interpreter, args: &Vec<Literal>) -> Result<Literal, RuntimeException> {
     if args.len() != 0 {
         let message = format!("Expected 0 args, received {}.", args.len());
-        return Err(RuntimeException::Base(RuntimeError::new(Token::default(), message)))
+        return Err(RuntimeException::base(Token::default(), message))
     }
 
     let start = SystemTime::now();

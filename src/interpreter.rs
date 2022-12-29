@@ -7,8 +7,8 @@ use crate::callable::as_callable;
 use crate::environment::Environment;
 use crate::error::*;
 use crate::expr::Expr;
-use crate::native_function::*;
 use crate::lox_function::LoxFunction;
+use crate::native_function::*;
 use crate::parser::Parser;
 use crate::scanner::Scanner;
 use crate::stmt::Stmt;
@@ -28,13 +28,11 @@ pub struct Interpreter {
 impl Default for Interpreter {
     fn default() -> Self {
         let mut environment = Environment::new();
-        let clock = Literal::NativeFunction(
-            NativeFunction {
-                name: "clock".to_string(),
-                arity: 0,
-                callable: clock
-            }
-        );
+        let clock = Literal::NativeFunction(NativeFunction {
+            name: "clock".to_string(),
+            arity: 0,
+            callable: clock,
+        });
         environment.define("clock".to_string(), clock);
         Self {
             had_error: false,
@@ -53,7 +51,7 @@ impl Interpreter {
             had_runtime_error: false,
             environment: Environment::with_enclosing(environment.clone()),
             loop_count: 0,
-            repl: false
+            repl: false,
         }
     }
 
@@ -84,7 +82,7 @@ impl Interpreter {
             Err(err) => {
                 parser.synchronize();
                 self.parser_error(err)?
-            },
+            }
             Ok(statements) => {
                 if let Err(err) = self.interpret(statements) {
                     if let RuntimeException::Base(err) = err {
@@ -177,10 +175,10 @@ impl Interpreter {
 
                 match value {
                     None => {
-                        return Err(RuntimeException::Base(RuntimeError::new(
+                        return Err(RuntimeException::base(
                             token,
                             "Must assign value to new variable.".to_string(),
-                        )))
+                        ))
                     }
                     Some(v) => self.environment.define(token.lexeme, v),
                 }
@@ -194,12 +192,10 @@ impl Interpreter {
                     while self.is_truthy(&value) {
                         match self.execute((*body).clone()) {
                             Ok(()) => (),
-                            Err(err) => {
-                                match err {
-                                    RuntimeException::Break => break,
-                                    _ => return Err(err)
-                                }
-                            }
+                            Err(err) => match err {
+                                RuntimeException::Break => break,
+                                _ => return Err(err),
+                            },
                         }
                         value = self.evaluate(condition.clone())?;
                     }
@@ -221,10 +217,10 @@ impl Interpreter {
                 if self.loop_count > 0 {
                     Err(RuntimeException::Break)
                 } else {
-                    Err(RuntimeException::Base(RuntimeError::new(
+                    Err(RuntimeException::base(
                         token,
                         "Expected to be within a loop.".to_string(),
-                    )))
+                    ))
                 }
             }
             Stmt::Function(name, params, body) => {
@@ -235,10 +231,8 @@ impl Interpreter {
             }
             Stmt::Return(_keyword, value) => {
                 let v = match *value {
-                    Some(value) => {
-                        Some(self.evaluate(value)?)
-                    }
-                    None => None
+                    Some(value) => Some(self.evaluate(value)?),
+                    None => None,
                 };
 
                 Err(RuntimeException::Return(Return::new(v)))
@@ -266,10 +260,10 @@ impl Interpreter {
                 let right = self.evaluate(*right);
                 match (operator.token_type, right.clone()) {
                     (TokenType::Minus, Ok(Literal::Number(n))) => Ok(Literal::Number(-n)),
-                    (TokenType::Minus, _) => Err(RuntimeException::Base(RuntimeError::new(
+                    (TokenType::Minus, _) => Err(RuntimeException::base(
                         operator,
                         "Operand must be a number.".to_string(),
-                    ))),
+                    )),
                     (TokenType::Bang, Ok(_)) => {
                         let b = !self.is_truthy(&right.unwrap());
                         if b {
@@ -310,10 +304,10 @@ impl Interpreter {
 
                 let func = as_callable(&callee);
                 if func.is_none() {
-                    return Err(RuntimeException::Base(RuntimeError::new(
+                    return Err(RuntimeException::base(
                         paren,
                         "Can only call functions and classes.".to_string(),
-                    )));
+                    ));
                 } else {
                     let func = func.unwrap();
                     if args.len() != func.arity() as usize {
@@ -322,7 +316,7 @@ impl Interpreter {
                             func.arity(),
                             args.len()
                         );
-                        return Err(RuntimeException::Base(RuntimeError::new(paren, message)));
+                        return Err(RuntimeException::base(paren, message));
                     }
                     func.call(self, &args)
                 }
@@ -334,31 +328,31 @@ impl Interpreter {
                     (TokenType::Minus, Ok(Literal::Number(a)), Ok(Literal::Number(b))) => {
                         Ok(Literal::Number(a - b))
                     }
-                    (TokenType::Minus, _, _) => Err(RuntimeException::Base(RuntimeError::new(
+                    (TokenType::Minus, _, _) => Err(RuntimeException::base(
                         operator,
                         "Operands must be numbers.".to_string(),
-                    ))),
+                    )),
                     (TokenType::Slash, Ok(Literal::Number(a)), Ok(Literal::Number(b))) => {
                         if b == 0.0 {
-                            Err(RuntimeException::Base(RuntimeError::new(
+                            Err(RuntimeException::base(
                                 operator,
                                 "Cannot divide by zero".to_string(),
-                            )))
+                            ))
                         } else {
                             Ok(Literal::Number(a / b))
                         }
                     }
-                    (TokenType::Slash, _, _) => Err(RuntimeException::Base(RuntimeError::new(
+                    (TokenType::Slash, _, _) => Err(RuntimeException::base(
                         operator,
                         "Operands must be numbers.".to_string(),
-                    ))),
+                    )),
                     (TokenType::Star, Ok(Literal::Number(a)), Ok(Literal::Number(b))) => {
                         Ok(Literal::Number(a * b))
                     }
-                    (TokenType::Star, _, _) => Err(RuntimeException::Base(RuntimeError::new(
+                    (TokenType::Star, _, _) => Err(RuntimeException::base(
                         operator,
                         "Operands must be numbers.".to_string(),
-                    ))),
+                    )),
                     (TokenType::Plus, Ok(Literal::Number(a)), Ok(Literal::Number(b))) => {
                         Ok(Literal::Number(a + b))
                     }
@@ -377,46 +371,45 @@ impl Interpreter {
                     }
                     (TokenType::Plus, Ok(l1), Ok(l2)) => {
                         println!("l1: {:?}, l2: {:?}", l1, l2);
-                        Err(RuntimeException::Base(RuntimeError::new(
+                        Err(RuntimeException::base(
                             operator,
                             "Operands must be two numbers or two strings.".to_string(),
-                        )))
+                        ))
                     }
                     (TokenType::Percent, Ok(Literal::Number(a)), Ok(Literal::Number(b))) => {
                         Ok(Literal::Number(a % b))
                     }
-                    (TokenType::Percent, _, _) => Err(RuntimeException::Base(RuntimeError::new(
+                    (TokenType::Percent, _, _) => Err(RuntimeException::base(
                         operator,
                         "Operands must be numbers".to_string(),
-                    ))),
+                    )),
                     (TokenType::Greater, Ok(Literal::Number(a)), Ok(Literal::Number(b))) => {
                         Ok(Literal::from(a > b))
                     }
-                    (TokenType::Greater, _, _) => Err(RuntimeException::Base(RuntimeError::new(
+                    (TokenType::Greater, _, _) => Err(RuntimeException::base(
                         operator,
                         "Operands must be numbers.".to_string(),
-                    ))),
+                    )),
                     (TokenType::GreaterEqual, Ok(Literal::Number(a)), Ok(Literal::Number(b))) => {
                         Ok(Literal::from(a >= b))
                     }
-                    (TokenType::GreaterEqual, _, _) => Err(RuntimeException::Base(RuntimeError::new(
-                        operator,
-                        "Operands must be numbers.".to_string(),
-                    ))),
+                    (TokenType::GreaterEqual, _, _) => Err(RuntimeException::base(
+                        operator, "Operands must be numbers.".to_string()),
+                    ),
                     (TokenType::Less, Ok(Literal::Number(a)), Ok(Literal::Number(b))) => {
                         Ok(Literal::from(a < b))
                     }
-                    (TokenType::Less, _, _) => Err(RuntimeException::Base(RuntimeError::new(
+                    (TokenType::Less, _, _) => Err(RuntimeException::base(
                         operator,
                         "Operands must be numbers.".to_string(),
-                    ))),
+                    )),
                     (TokenType::LessEqual, Ok(Literal::Number(a)), Ok(Literal::Number(b))) => {
                         Ok(Literal::from(a <= b))
                     }
-                    (TokenType::LessEqual, _, _) => Err(RuntimeException::Base(RuntimeError::new(
+                    (TokenType::LessEqual, _, _) => Err(RuntimeException::base(
                         operator,
                         "Operands must be numbers.".to_string(),
-                    ))),
+                    )),
                     (TokenType::BangEqual, Ok(l1), Ok(l2)) => {
                         Ok(Literal::from(!self.is_equal(&l1, &l2)))
                     }
