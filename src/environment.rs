@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::token::{Literal,Token};
-use crate::error::RuntimeError;
+use crate::error::{RuntimeError,RuntimeException};
 
 #[derive(Clone)]
 pub struct Environment {
@@ -28,7 +28,7 @@ impl Environment {
         self.values.insert(name, value);
     }
 
-    pub fn assign(&mut self, name: Token, value: Literal) -> Result<(), RuntimeError>  {
+    pub fn assign(&mut self, name: Token, value: Literal) -> Result<(), RuntimeException>  {
         if self.values.contains_key(&name.lexeme) {
             self.values.insert(name.lexeme, value);
             return Ok(())
@@ -38,12 +38,12 @@ impl Environment {
             Some(enclosing) => enclosing.assign(name, value),
             None => {
                 let message = format!("Undefined variable {}.", name.lexeme);
-                Err(RuntimeError::new(name, message))
+                Err(RuntimeException::Base(RuntimeError::new(name, message)))
             }
         }
     }
 
-    pub fn get(&self, name: Token) -> Result<Literal, RuntimeError> {
+    pub fn get(&self, name: Token) -> Result<Literal, RuntimeException> {
         match self.values.get(&name.lexeme) {
             Some(v) => Ok(v.clone()),
             None => {
@@ -51,7 +51,7 @@ impl Environment {
                     Some(env) => (*env).get(name),
                     _ => {
                         let message = format!("Undefined variable {}.", name.lexeme);
-                        Err(RuntimeError::new(name, message))
+                        Err(RuntimeException::Base(RuntimeError::new(name, message)))
                     }
                 }
             }

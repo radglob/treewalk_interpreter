@@ -2,7 +2,7 @@ use std::fmt;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::callable::Callable;
-use crate::error::RuntimeError;
+use crate::error::{RuntimeError,RuntimeException};
 use crate::token::Literal;
 use crate::token::Token;
 use crate::interpreter::Interpreter;
@@ -11,7 +11,7 @@ use crate::interpreter::Interpreter;
 pub struct NativeFunction {
     pub name: String,
     pub arity: u8,
-    pub callable: fn(interpreter: &Interpreter, &Vec<Literal>) -> Result<Literal, RuntimeError>,
+    pub callable: fn(interpreter: &Interpreter, &Vec<Literal>) -> Result<Literal, RuntimeException>,
 }
 
 impl fmt::Debug for NativeFunction {
@@ -25,15 +25,15 @@ impl Callable for NativeFunction {
         self.arity
     }
 
-    fn call(&self, interpreter: &Interpreter, args: &Vec<Literal>) -> Result<Literal, RuntimeError> {
+    fn call(&self, interpreter: &Interpreter, args: &Vec<Literal>) -> Result<Literal, RuntimeException> {
         (self.callable)(interpreter, args)
     }
 }
 
-pub fn clock(_interpreter: &Interpreter, args: &Vec<Literal>) -> Result<Literal, RuntimeError> {
+pub fn clock(_interpreter: &Interpreter, args: &Vec<Literal>) -> Result<Literal, RuntimeException> {
     if args.len() != 0 {
         let message = format!("Expected 0 args, received {}.", args.len());
-        return Err(RuntimeError::new(Token::default(), message))
+        return Err(RuntimeException::Base(RuntimeError::new(Token::default(), message)))
     }
 
     let start = SystemTime::now();

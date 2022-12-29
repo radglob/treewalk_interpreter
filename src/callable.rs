@@ -1,10 +1,9 @@
-use crate::error::RuntimeError;
 use crate::token::Literal;
-use crate::interpreter::Interpreter;
+use crate::interpreter::{Interpreter,InterpreterResult};
 
 pub trait Callable {
     fn arity(&self) -> u8;
-    fn call(&self, interpreter: &Interpreter, args: &Vec<Literal>) -> Result<Literal, RuntimeError>;
+    fn call(&self, interpreter: &Interpreter, args: &Vec<Literal>) -> InterpreterResult<Literal>;
 }
 
 pub fn as_callable(literal: &Literal) -> Option<&dyn Callable> {

@@ -7,6 +7,7 @@ pub enum Stmt {
     Expression(Expr),
     Function(Token, Vec<Token>, Box<Vec<Stmt>>),
     Print(Expr),
+    Return(Token, Box<Option<Expr>>),
     If(Expr, Box<Stmt>, Box<Option<Stmt>>),
     While(Option<Expr>, Box<Stmt>),
     Var(Token, Option<Expr>),

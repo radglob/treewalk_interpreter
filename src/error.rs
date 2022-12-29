@@ -2,6 +2,7 @@ use std::error::Error;
 use std::fmt;
 
 use crate::token::Token;
+use crate::token::Literal;
 
 #[derive(Debug)]
 pub struct ParserError {
@@ -49,4 +50,22 @@ impl fmt::Display for RuntimeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.message)
     }
+}
+
+#[derive(Clone,Debug)]
+pub struct Return {
+    pub value: Option<Literal>
+}
+
+impl Return {
+    pub fn new(value: Option<Literal>) -> Self {
+        Self { value }
+    }
+}
+
+#[derive(Clone,Debug)]
+pub enum RuntimeException {
+    Base(RuntimeError),
+    Return(Return),
+    Break
 }

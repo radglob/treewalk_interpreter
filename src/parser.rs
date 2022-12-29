@@ -322,6 +322,10 @@ impl Parser {
             return self.print_statement();
         }
 
+        if self.matches(vec![Return]) {
+            return self.return_statement();
+        }
+
         if self.matches(vec![LeftBrace]) {
             return Ok(Stmt::Block(self.block()?));
         }
@@ -420,6 +424,17 @@ impl Parser {
         let value = self.expression()?;
         self.consume(Semicolon, "Expected ';' after value.")?;
         Ok(Stmt::Print(value))
+    }
+
+    fn return_statement(&mut self) -> ParseResult<Stmt> {
+        let keyword = self.previous();
+        let mut value = None;
+        if !self.check(Semicolon) {
+            value = Some(self.expression()?);
+        }
+
+        self.consume(Semicolon, "Expect ';' after return value.")?;
+        Ok(Stmt::Return(keyword, Box::new(value)))
     }
 
     fn expression_statement(&mut self) -> ParseResult<Stmt> {

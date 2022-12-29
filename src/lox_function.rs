@@ -1,5 +1,5 @@
 use crate::callable::Callable;
-use crate::error::RuntimeError;
+use crate::error::{RuntimeException,RuntimeError};
 use crate::interpreter::Interpreter;
 use crate::stmt::Stmt;
 use crate::token::Literal;
@@ -29,7 +29,7 @@ impl Callable for LoxFunction {
         &self,
         interpreter: &Interpreter,
         args: &Vec<Literal>,
-    ) -> Result<Literal, RuntimeError> {
+    ) -> Result<Literal, RuntimeException> {
         let mut interpreter2 = Interpreter::new(&interpreter.environment);
         match &*self.declaration {
             Stmt::Function(_name, params, body) => {
@@ -38,13 +38,21 @@ impl Callable for LoxFunction {
                     interpreter2.environment.define(param.lexeme.clone(), value);
                 }
 
-                interpreter2.evaluate_block(*(*body).clone())?;
-                Ok(Literal::Nil)
+                match interpreter2.evaluate_block(*(*body).clone()) {
+                    Err(RuntimeException::Return(r)) => {
+                        match r.value {
+                            Some(v) => return Ok(v),
+                            None => return Ok(Literal::Nil)
+                        }
+                    }
+                    Err(err) => return Err(err),
+                    _ => return Ok(Literal::Nil)
+                }
             }
-            _ => Err(RuntimeError::new(
+            _ => Err(RuntimeException::Base(RuntimeError::new(
                 Token::default(),
                 "Invalid function declaration.".to_string(),
-            )),
+            ))),
         }
     }
 }
