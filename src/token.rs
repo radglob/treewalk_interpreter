@@ -137,6 +137,15 @@ impl Token {
             line,
         }
     }
+
+    pub fn from_string(lexeme: String) -> Self {
+        Self {
+            token_type: TokenType::Nil,
+            lexeme,
+            literal: None,
+            line: 0
+        }
+    }
 }
 
 impl fmt::Display for Token {

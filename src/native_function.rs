@@ -25,7 +25,7 @@ impl Callable for NativeFunction {
         self.arity
     }
 
-    fn call(&self, interpreter: &Interpreter, args: &Vec<Literal>) -> Result<Literal, RuntimeException> {
+    fn call(&mut self, interpreter: &Interpreter, args: &Vec<Literal>) -> Result<Literal, RuntimeException> {
         (self.callable)(interpreter, args)
     }
 }

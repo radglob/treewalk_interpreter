@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::token::{Literal,Token};
 use crate::error::{RuntimeError,RuntimeException};
 
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct Environment {
     pub enclosing: Option<Box<Environment>>,
     values: HashMap<String, Literal>

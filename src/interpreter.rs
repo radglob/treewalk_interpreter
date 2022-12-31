@@ -3,7 +3,7 @@ use std::fs;
 use std::io::{stderr, Write};
 use std::process::exit;
 
-use crate::callable::as_callable;
+use crate::callable::Callable;
 use crate::environment::Environment;
 use crate::error::*;
 use crate::expr::Expr;
@@ -225,7 +225,11 @@ impl Interpreter {
             }
             Stmt::Function(name, params, body) => {
                 let stmt = Stmt::Function(name.clone(), params, body);
-                let function = Literal::LoxFunction(LoxFunction::new(name.lexeme.clone(), stmt));
+                let function = Literal::LoxFunction(LoxFunction::new(
+                    name.lexeme.clone(),
+                    stmt,
+                    self.environment.clone(),
+                ));
                 self.environment.define(name.lexeme, function);
                 Ok(())
             }
@@ -249,6 +253,7 @@ impl Interpreter {
         if let Some(enclosing) = self.environment.enclosing.clone() {
             self.environment = *enclosing;
         }
+
         Ok(())
     }
 
@@ -296,29 +301,48 @@ impl Interpreter {
                 self.evaluate(*right)
             }
             Expr::Call(callee, paren, arguments) => {
-                let callee = self.evaluate(*callee)?;
+                let callee2 = self.evaluate(*callee.clone())?;
                 let mut args = vec![];
                 for argument in *arguments {
                     args.push(self.evaluate(argument)?);
                 }
 
-                let func = as_callable(&callee);
-                if func.is_none() {
-                    return Err(RuntimeException::base(
-                        paren,
-                        "Can only call functions and classes.".to_string(),
-                    ));
-                } else {
-                    let func = func.unwrap();
-                    if args.len() != func.arity() as usize {
-                        let message = format!(
-                            "Expected {} arguments but got {}.",
-                            func.arity(),
-                            args.len()
-                        );
-                        return Err(RuntimeException::base(paren, message));
+                match callee2 {
+                    Literal::LoxFunction(mut lf) => {
+                        if args.len() != lf.arity() as usize {
+                            let message = format!(
+                                "Expected {} arguments but got {}.",
+                                lf.arity(),
+                                args.len()
+                            );
+                            return Err(RuntimeException::base(paren, message));
+                        }
+                        let result = lf.call(self, &args);
+                        match *callee {
+                            Expr::Variable(token) => {    
+                                self.environment.assign(token, Literal::LoxFunction(lf))?;
+                            }
+                            _ => ()
+                        }
+                        result
                     }
-                    func.call(self, &args)
+                    Literal::NativeFunction(mut nf) => {
+                        if args.len() != nf.arity() as usize {
+                            let message = format!(
+                                "Expected {} arguments but got {}.",
+                                nf.arity(),
+                                args.len()
+                            );
+                            return Err(RuntimeException::base(paren, message));
+                        }
+                        nf.call(self, &args)
+                    }
+                    _ => {
+                        return Err(RuntimeException::base(
+                            paren,
+                            "Can only call functions and classes.".to_string(),
+                        ));
+                    }
                 }
             }
             Expr::Binary(left, operator, right) => {
@@ -394,8 +418,9 @@ impl Interpreter {
                         Ok(Literal::from(a >= b))
                     }
                     (TokenType::GreaterEqual, _, _) => Err(RuntimeException::base(
-                        operator, "Operands must be numbers.".to_string()),
-                    ),
+                        operator,
+                        "Operands must be numbers.".to_string(),
+                    )),
                     (TokenType::Less, Ok(Literal::Number(a)), Ok(Literal::Number(b))) => {
                         Ok(Literal::from(a < b))
                     }

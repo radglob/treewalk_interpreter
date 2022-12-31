@@ -1,4 +1,5 @@
 use crate::callable::Callable;
+use crate::environment::Environment;
 use crate::error::RuntimeException;
 use crate::interpreter::Interpreter;
 use crate::stmt::Stmt;
@@ -9,11 +10,16 @@ use crate::token::Token;
 pub struct LoxFunction {
     pub name: String,
     declaration: Box<Stmt>,
+    pub closure: Environment,
 }
 
 impl LoxFunction {
-    pub fn new(name: String, declaration: Stmt) -> Self {
-        Self { name, declaration: Box::new(declaration) }
+    pub fn new(name: String, declaration: Stmt, closure: Environment) -> Self {
+        Self {
+            name,
+            declaration: Box::new(declaration),
+            closure,
+        }
     }
 }
 
@@ -26,11 +32,11 @@ impl Callable for LoxFunction {
     }
 
     fn call(
-        &self,
-        interpreter: &Interpreter,
+        &mut self,
+        _interpreter: &Interpreter,
         args: &Vec<Literal>,
     ) -> Result<Literal, RuntimeException> {
-        let mut interpreter2 = Interpreter::new(&interpreter.environment);
+        let mut interpreter2 = Interpreter::new(&self.closure);
         match &*self.declaration {
             Stmt::Function(_name, params, body) => {
                 for (i, param) in params.iter().enumerate() {
@@ -38,15 +44,17 @@ impl Callable for LoxFunction {
                     interpreter2.environment.define(param.lexeme.clone(), value);
                 }
 
-                match interpreter2.evaluate_block(*(*body).clone()) {
-                    Err(RuntimeException::Return(r)) => {
-                        match r.value {
-                            Some(v) => return Ok(v),
-                            None => return Ok(Literal::Nil)
-                        }
-                    }
+                let result = interpreter2.evaluate_block(*(*body).clone());
+                if let Some(enclosing) = interpreter2.environment.enclosing {
+                    self.closure = *enclosing;
+                }
+                match result {
+                    Err(RuntimeException::Return(r)) => match r.value {
+                        Some(v) => return Ok(v),
+                        None => return Ok(Literal::Nil),
+                    },
                     Err(err) => return Err(err),
-                    _ => return Ok(Literal::Nil)
+                    _ => return Ok(Literal::Nil),
                 }
             }
             _ => Err(RuntimeException::base(
