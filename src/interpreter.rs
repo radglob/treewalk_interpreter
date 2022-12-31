@@ -14,6 +14,7 @@ use crate::scanner::Scanner;
 use crate::stmt::Stmt;
 use crate::token::Literal;
 use crate::token::TokenType;
+use crate::token::Token;
 
 pub type InterpreterResult<T> = Result<T, RuntimeException>;
 
@@ -259,6 +260,7 @@ impl Interpreter {
 
     fn evaluate(&mut self, expr: Expr) -> InterpreterResult<Literal> {
         match expr {
+            Expr::Empty => Ok(Literal::Nil),
             Expr::Literal(literal) => Ok(literal),
             Expr::Grouping(expr) => self.evaluate(*expr),
             Expr::Unary(operator, right) => {
@@ -300,6 +302,11 @@ impl Interpreter {
 
                 self.evaluate(*right)
             }
+            Expr::Lambda(arguments, body) => {
+                let stmt = Stmt::Function(Token::from_str(""), arguments, body);
+                let function = LoxFunction::new("".to_string(), stmt, self.environment.clone());
+                Ok(Literal::LoxFunction(function))
+            }
             Expr::Call(callee, paren, arguments) => {
                 let callee2 = self.evaluate(*callee.clone())?;
                 let mut args = vec![];
@@ -319,10 +326,10 @@ impl Interpreter {
                         }
                         let result = lf.call(self, &args);
                         match *callee {
-                            Expr::Variable(token) => {    
+                            Expr::Variable(token) => {
                                 self.environment.assign(token, Literal::LoxFunction(lf))?;
                             }
-                            _ => ()
+                            _ => (),
                         }
                         result
                     }

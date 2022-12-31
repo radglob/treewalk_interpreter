@@ -138,6 +138,10 @@ impl Token {
         }
     }
 
+    pub fn from_str(lexeme: &str) -> Self {
+        Self::from_string(lexeme.to_string())
+    }
+
     pub fn from_string(lexeme: String) -> Self {
         Self {
             token_type: TokenType::Nil,

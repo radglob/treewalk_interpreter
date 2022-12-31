@@ -24,7 +24,35 @@ impl Parser {
     }
 
     fn expression(&mut self) -> ParseResult<Expr> {
+        if self.matches(vec![Fun]) {
+            return self.lambda()
+        }
+
         self.assignment()
+    }
+
+    fn lambda(&mut self) -> ParseResult<Expr> {
+        self.consume(LeftParen, "Expect '(' before lambda arguments.")?;
+        let mut parameters = vec![];
+        if !self.check(RightParen) {
+            loop {
+                if parameters.len() >= 255 {
+                    return Err(ParserError::new(
+                        self.peek(),
+                        "Can't have more than 255 parameters.".to_string(),
+                    ));
+                }
+                parameters.push(self.consume(Identifier, "Expect parameter name.")?);
+
+                if !self.matches(vec![Comma]) {
+                    break;
+                }
+            }
+        }
+        self.consume(RightParen, "Expect ')' after parameters.")?;
+        self.consume(LeftBrace, "Expect '{' before lambda body.")?;
+        let body = self.block()?;
+        Ok(Expr::Lambda(parameters, Box::new(body)))
     }
 
     fn assignment(&mut self) -> ParseResult<Expr> {
@@ -188,7 +216,6 @@ impl Parser {
                 }
             }
         }
-
         let paren = self.consume(RightParen, "Expect ')' after arguments.")?;
         Ok(Expr::Call(Box::new(callee), paren, Box::new(arguments)))
     }
@@ -216,10 +243,7 @@ impl Parser {
             return Ok(Expr::Variable(self.previous()));
         }
 
-        Err(ParserError::new(
-            self.peek(),
-            "Expect expression".to_string(),
-        ))
+        Ok(Expr::Empty)
     }
 
     fn consume(&mut self, t: TokenType, message: &str) -> Result<Token, ParserError> {
@@ -255,7 +279,11 @@ impl Parser {
 
     fn declaration(&mut self) -> ParseResult<Stmt> {
         if self.matches(vec![Fun]) {
-            return self.function("function");
+            if self.peek().token_type == LeftParen {
+                return self.function("lambda");
+            } else {
+                return self.function("function");
+            }
         }
 
         if self.matches(vec![Var]) {
@@ -265,7 +293,11 @@ impl Parser {
     }
 
     fn function(&mut self, kind: &str) -> ParseResult<Stmt> {
-        let name = self.consume(Identifier, &format!("Expect {} name.", kind))?;
+        let name = match kind {
+            "function" => self.consume(Identifier, &format!("Expect {} name.", kind))?,
+            "lambda" => Token::from_str(""),
+            _ => unimplemented!()
+        };
         self.consume(LeftParen, &format!("Expect '(' after {} name.", kind))?;
         let mut parameters = vec![];
         if !self.check(RightParen) {

@@ -42,7 +42,10 @@ impl AstPrinter {
                 }
                 s.push(')');
                 s
-            }
+            },
+            Expr::Lambda(_arguments, _body) => "(<lambda>)".to_string(),
+            Expr::Empty => "".to_string()
+
         }
     }
 
