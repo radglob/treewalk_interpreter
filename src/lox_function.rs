@@ -33,10 +33,11 @@ impl Callable for LoxFunction {
 
     fn call(
         &mut self,
-        _interpreter: &Interpreter,
+        interpreter: &Interpreter,
         args: &Vec<Literal>,
     ) -> Result<Literal, RuntimeException> {
-        let mut interpreter2 = Interpreter::new(&self.closure);
+        let (env, depth) = Environment::wrap(self.closure.clone(), interpreter.environment.clone(), 0);
+        let mut interpreter2 = Interpreter::new(&env);
         match &*self.declaration {
             Stmt::Function(_name, params, body) => {
                 for (i, param) in params.iter().enumerate() {
@@ -45,9 +46,7 @@ impl Callable for LoxFunction {
                 }
 
                 let result = interpreter2.evaluate_block(*(*body).clone());
-                if let Some(enclosing) = interpreter2.environment.enclosing {
-                    self.closure = *enclosing;
-                }
+                self.closure = Environment::unwrap(interpreter2.environment, depth);
                 match result {
                     Err(RuntimeException::Return(r)) => match r.value {
                         Some(v) => return Ok(v),
