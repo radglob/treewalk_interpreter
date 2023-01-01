@@ -4,18 +4,19 @@ use std::error::Error;
 use std::cmp::Ordering::*;
 
 pub mod ast_printer;
+pub mod callable;
+pub mod declaration;
+pub mod environment;
 pub mod error;
 pub mod expr;
 pub mod interpreter;
+pub mod lox_function;
+pub mod native_function;
 pub mod parser;
+pub mod resolver;
 pub mod scanner;
 pub mod stmt;
 pub mod token;
-pub mod declaration;
-pub mod environment;
-pub mod native_function;
-pub mod lox_function;
-pub mod callable;
 
 use crate::interpreter::Interpreter;
 

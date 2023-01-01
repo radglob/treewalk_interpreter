@@ -3,7 +3,7 @@ use std::fmt;
 use crate::native_function::NativeFunction;
 use crate::lox_function::LoxFunction;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum TokenType {
     // Single character tokens
     LeftParen,

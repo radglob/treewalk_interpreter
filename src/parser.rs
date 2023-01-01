@@ -25,7 +25,7 @@ impl Parser {
 
     fn expression(&mut self) -> ParseResult<Expr> {
         if self.matches(vec![Fun]) {
-            return self.lambda()
+            return self.lambda();
         }
 
         self.assignment()
@@ -296,7 +296,7 @@ impl Parser {
         let name = match kind {
             "function" => self.consume(Identifier, &format!("Expect {} name.", kind))?,
             "lambda" => Token::from_str(""),
-            _ => unimplemented!()
+            _ => unimplemented!(),
         };
         self.consume(LeftParen, &format!("Expect '(' after {} name.", kind))?;
         let mut parameters = vec![];
@@ -396,6 +396,8 @@ impl Parser {
             condition = Some(Expr::Literal(Literal::True));
         }
 
+        let condition = condition.unwrap();
+
         body = Stmt::While(condition, Box::new(body));
 
         if let Some(initializer) = initializer {
@@ -410,7 +412,7 @@ impl Parser {
         let condition = self.expression()?;
         self.consume(RightParen, "Expect ')' after condition.")?;
         let body = self.statement()?;
-        Ok(Stmt::While(Some(condition), Box::new(body)))
+        Ok(Stmt::While(condition, Box::new(body)))
     }
 
     fn break_statement(&mut self) -> ParseResult<Stmt> {

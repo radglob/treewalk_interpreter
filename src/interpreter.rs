@@ -111,7 +111,7 @@ impl Interpreter {
         Ok(())
     }
 
-    fn error(&mut self, line: u32, message: String) -> Result<(), std::io::Error> {
+    pub fn error(&mut self, line: u32, message: String) -> Result<(), std::io::Error> {
         self.report(line, "".to_string(), message)?;
         Ok(())
     }
@@ -144,6 +144,15 @@ impl Interpreter {
     ) -> Result<(), std::io::Error> {
         writeln!(stderr(), "[line {}] Error{}: {}", line, location, message)?;
         self.had_error = true;
+        Ok(())
+    }
+
+    pub fn log_error(&mut self, token: Token, message: String) -> Result<(), std::io::Error> {
+        if token.token_type == TokenType::Eof {
+            self.report(token.line, "at end".to_string(), message)?;
+        } else {
+            self.report(token.line, format!(" at '{}'", token.lexeme), message)?;
+        }
         Ok(())
     }
 
@@ -187,21 +196,19 @@ impl Interpreter {
                 Ok(())
             }
             Stmt::While(condition, body) => {
-                if let Some(condition) = condition {
-                    let mut value = self.evaluate(condition.clone())?;
-                    self.loop_count += 1;
-                    while self.is_truthy(&value) {
-                        match self.execute((*body).clone()) {
-                            Ok(()) => (),
-                            Err(err) => match err {
-                                RuntimeException::Break => break,
-                                _ => return Err(err),
-                            },
-                        }
-                        value = self.evaluate(condition.clone())?;
+                let mut value = self.evaluate(condition.clone())?;
+                self.loop_count += 1;
+                while self.is_truthy(&value) {
+                    match self.execute((*body).clone()) {
+                        Ok(()) => (),
+                        Err(err) => match err {
+                            RuntimeException::Break => break,
+                            _ => return Err(err),
+                        },
                     }
-                    self.loop_count -= 1;
+                    value = self.evaluate(condition.clone())?;
                 }
+                self.loop_count -= 1;
                 Ok(())
             }
             Stmt::Block(stmts) => self.evaluate_block(stmts),
@@ -243,6 +250,10 @@ impl Interpreter {
                 Err(RuntimeException::Return(Return::new(v)))
             }
         }
+    }
+
+    pub fn resolve(&self, _expr: Expr, _depth: u32) {
+        // self.locals.insert(expr, depth);
     }
 
     pub fn evaluate_block(&mut self, stmts: Vec<Stmt>) -> InterpreterResult<()> {

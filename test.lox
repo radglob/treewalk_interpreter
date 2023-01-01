@@ -69,9 +69,9 @@ fun fib(n) {
   return fib(n - 2) + fib(n - 1);
 }
 
-for (var i = 0; i < 20; i = i + 1) {
-  print fib(i);
-}
+// for (var i = 0; i < 20; i = i + 1) {
+//   print fib(i);
+// }
 
 fun makeCounter() {
   var i = 0;
@@ -97,3 +97,14 @@ thrice(fun (a) {
 });
 
 fun () {};
+
+var a = "global";
+{
+  fun showA() {
+    print a;
+  }
+
+  showA();
+  var a = "block";
+  showA();
+}
