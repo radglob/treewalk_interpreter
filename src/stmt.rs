@@ -1,7 +1,7 @@
 use crate::expr::Expr;
 use crate::token::Token;
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Stmt {
     Block(Vec<Stmt>),
     Expression(Expr),
@@ -11,5 +11,5 @@ pub enum Stmt {
     If(Expr, Box<Stmt>, Box<Option<Stmt>>),
     While(Expr, Box<Stmt>),
     Var(Token, Option<Expr>),
-    Break(Token)
+    Break(Token),
 }

@@ -1,7 +1,7 @@
 use crate::token::{Literal,Token};
 use crate::stmt::Stmt;
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,Eq,PartialEq,Hash)]
 pub enum Expr {
     Literal(Literal),
     Logical(Box<Expr>, Token, Box<Expr>),

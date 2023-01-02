@@ -1,9 +1,10 @@
 use std::fmt;
+use std::hash::Hash;
 
 use crate::native_function::NativeFunction;
 use crate::lox_function::LoxFunction;
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum TokenType {
     // Single character tokens
     LeftParen,
@@ -73,6 +74,33 @@ pub enum Literal {
     LoxFunction(LoxFunction)
 }
 
+impl PartialEq for Literal {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Literal::Nil, Literal::Nil) | (Literal::True, Literal::True) | (Literal::False, Literal::False) => true,
+            (Literal::Number(a), Literal::Number(b)) => (*a as i64) == (*b as i64),
+            (Literal::String(a), Literal::String(b)) => a == b,
+            (Literal::LoxFunction(f1), Literal::LoxFunction(f2)) => f1 == f2,
+            (Literal::NativeFunction(f1), Literal::NativeFunction(f2)) => f1 == f2,
+            _ => false
+        }
+    }
+}
+
+impl Eq for Literal {}
+
+impl Hash for Literal {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            Literal::Number(f) => {
+                let i = *f as i64;
+                i.hash(state);
+            },
+            _ => self.hash(state)
+        }
+    }
+}
+
 impl From<bool> for Literal {
     fn from(v: bool) -> Self {
         if v {
@@ -109,7 +137,7 @@ impl ToString for Literal {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,

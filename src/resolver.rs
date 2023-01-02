@@ -5,12 +5,20 @@ use crate::interpreter::Interpreter;
 use crate::stmt::Stmt;
 use crate::token::Token;
 
-pub struct Resolver {
-    interpreter: Interpreter,
-    scopes: Vec<HashMap<String, bool>>,
+#[derive(Clone, PartialEq)]
+enum FunctionType {
+    None,
+    Function,
 }
 
-trait Resolve<T> {
+pub struct Resolver {
+    pub interpreter: Interpreter,
+    scopes: Vec<HashMap<String, bool>>,
+    current_function: FunctionType,
+    returned: bool
+}
+
+pub trait Resolve<T> {
     fn resolve(&mut self, value: T);
 }
 
@@ -19,6 +27,8 @@ impl Resolver {
         Self {
             interpreter,
             scopes: vec![],
+            current_function: FunctionType::None,
+            returned: false
         }
     }
 
@@ -27,6 +37,7 @@ impl Resolver {
     }
 
     fn end_scope(&mut self) {
+        self.returned = false;
         self.scopes.pop();
     }
 
@@ -35,6 +46,15 @@ impl Resolver {
             return;
         };
         let mut scope = self.scopes.pop().expect("Expected a HashMap.");
+        if scope.contains_key(&name.lexeme) {
+            self.interpreter
+                .log_error(
+                    name,
+                    "Already a variable with this name in this scope.".to_string(),
+                )
+                .expect("There was an issue logging this error.");
+            return;
+        }
         scope.insert(name.lexeme, false);
         self.scopes.push(scope);
     }
@@ -48,7 +68,11 @@ impl Resolver {
         self.scopes.push(scope);
     }
 
-    fn resolve_local(&self, expr: Expr, name: Token) {
+    fn resolve_local(&mut self, expr: Expr, name: Token) {
+        if self.scopes.is_empty() {
+            return;
+        }
+
         let mut i = self.scopes.len() - 1;
         loop {
             if self.scopes.get(i).unwrap().contains_key(&name.lexeme) {
@@ -62,7 +86,14 @@ impl Resolver {
         }
     }
 
-    fn resolve_function(&mut self, params: Vec<Token>, body: Box<Vec<Stmt>>) {
+    fn resolve_function(
+        &mut self,
+        params: Vec<Token>,
+        body: Box<Vec<Stmt>>,
+        function_type: FunctionType,
+    ) {
+        let enclosing_function = self.current_function.clone();
+        self.current_function = function_type;
         self.begin_scope();
         for param in params {
             self.declare(param.clone());
@@ -70,6 +101,7 @@ impl Resolver {
         }
         self.resolve(*body);
         self.end_scope();
+        self.current_function = enclosing_function;
     }
 }
 
@@ -90,6 +122,10 @@ impl Resolve<Stmt> for Resolver {
                 self.end_scope();
             }
             Stmt::Var(name, initializer) => {
+                if self.returned {
+                    self.interpreter.log_error(name, "Unreachable code after return.".to_string()).expect("Unable to write to stderr.");
+                    return;
+                }
                 self.declare(name.clone());
                 if let Some(expr) = initializer {
                     self.resolve(expr)
@@ -99,7 +135,7 @@ impl Resolve<Stmt> for Resolver {
             Stmt::Function(name, params, body) => {
                 self.declare(name.clone());
                 self.define(name);
-                self.resolve_function(params, body);
+                self.resolve_function(params, body, FunctionType::Function);
             }
             Stmt::Expression(expression) => {
                 self.resolve(expression);
@@ -111,15 +147,23 @@ impl Resolve<Stmt> for Resolver {
                 if else_branch.is_some() {
                     self.resolve(else_branch.unwrap());
                 }
+                self.returned = false;
             }
             Stmt::Print(expression) => {
                 self.resolve(expression);
             }
-            Stmt::Return(_, value) => {
+            Stmt::Return(keyword, value) => {
+                if self.current_function == FunctionType::None {
+                    self.interpreter
+                        .log_error(keyword, "Can't return from top-level code.".to_string())
+                        .expect("Unable to write to stderr.");
+                    return;
+                }
                 let value = *value;
                 if value.is_some() {
                     self.resolve(value.unwrap());
                 }
+                self.returned = true;
             }
             Stmt::While(condition, body) => {
                 self.resolve(condition);
@@ -134,14 +178,21 @@ impl Resolve<Expr> for Resolver {
     fn resolve(&mut self, expr: Expr) {
         match expr {
             Expr::Variable(ref name) => {
+                if self.returned {
+                    self.interpreter.log_error(name.clone(), "Unreachable code after a return.".to_string()).expect("Unable to write to stderr.");
+                    return;
+                }
+
                 if !self.scopes.is_empty() {
                     let scope = self.scopes.last().unwrap();
                     match scope.get(&name.lexeme) {
                         Some(false) => {
-                            self.interpreter.log_error(
-                                name.clone(),
-                                "Can't read local variable in its own initializer.".to_string(),
-                            ).expect("There was an error printing to stderr.");
+                            self.interpreter
+                                .log_error(
+                                    name.clone(),
+                                    "Can't read local variable in its own initializer.".to_string(),
+                                )
+                                .expect("There was an error printing to stderr.");
                         }
                         _ => (),
                     }
@@ -174,7 +225,7 @@ impl Resolve<Expr> for Resolver {
             Expr::Unary(_, right) => {
                 self.resolve(*right);
             }
-            _ => panic!(),
+            _ => (),
         }
     }
 }

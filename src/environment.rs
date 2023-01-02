@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::error::{RuntimeError, RuntimeException};
 use crate::token::{Literal, Token};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Environment {
     pub enclosing: Option<Box<Environment>>,
     values: HashMap<String, Literal>,
@@ -89,6 +89,11 @@ impl Environment {
         }
     }
 
+    pub fn assign_at(&mut self, distance: u32, name: Token, value: Literal) -> Result<(), RuntimeException> {
+        self.ancestor(distance).values.insert(name.lexeme, value);
+        Ok(())
+    }
+
     pub fn get(&self, name: Token) -> Result<Literal, RuntimeException> {
         match self.values.get(&name.lexeme) {
             Some(v) => Ok(v.clone()),
@@ -99,6 +104,30 @@ impl Environment {
                     Err(RuntimeException::base(name, message))
                 }
             },
+        }
+    }
+
+    pub fn get_at(&self, distance: u32, name: String) -> Result<Literal, RuntimeException> {
+        match self.ancestor(distance).values.get(&name) {
+            Some(v) => Ok(v.clone()),
+            None => {
+                let message = format!("Could not find {} at expected depth.", name);
+                Err(RuntimeException::base(Token::from_string(name), message))
+            }
+        }
+    }
+
+    fn ancestor(&self, mut distance: u32) -> Environment {
+        let mut environment = self;
+        loop {
+            if distance == 0 {
+                return environment.clone();
+            }
+            environment = &*environment
+                .enclosing
+                .as_ref()
+                .expect("Expected an enclosing environment.");
+            distance -= 1;
         }
     }
 }

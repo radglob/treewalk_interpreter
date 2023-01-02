@@ -6,7 +6,7 @@ use crate::stmt::Stmt;
 use crate::token::Literal;
 use crate::token::Token;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LoxFunction {
     pub name: String,
     declaration: Box<Stmt>,
@@ -36,7 +36,8 @@ impl Callable for LoxFunction {
         interpreter: &Interpreter,
         args: &Vec<Literal>,
     ) -> Result<Literal, RuntimeException> {
-        let (env, depth) = Environment::wrap(self.closure.clone(), interpreter.environment.clone(), 0);
+        let (env, depth) =
+            Environment::wrap(self.closure.clone(), interpreter.environment.clone(), 0);
         let mut interpreter2 = Interpreter::new(&env);
         match &*self.declaration {
             Stmt::Function(_name, params, body) => {

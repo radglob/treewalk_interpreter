@@ -11,7 +11,13 @@ use crate::interpreter::Interpreter;
 pub struct NativeFunction {
     pub name: String,
     pub arity: u8,
-    pub callable: fn(interpreter: &Interpreter, &Vec<Literal>) -> Result<Literal, RuntimeException>,
+    pub callable: fn(interpreter: &Interpreter, args: &Vec<Literal>) -> Result<Literal, RuntimeException>,
+}
+
+impl PartialEq for NativeFunction {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name && self.arity == other.arity
+    }
 }
 
 impl fmt::Debug for NativeFunction {

@@ -2,6 +2,7 @@ use std::error::Error;
 use std::fs;
 use std::io::{stderr, Write};
 use std::process::exit;
+use std::collections::HashMap;
 
 use crate::callable::Callable;
 use crate::environment::Environment;
@@ -10,20 +11,23 @@ use crate::expr::Expr;
 use crate::lox_function::LoxFunction;
 use crate::native_function::*;
 use crate::parser::Parser;
+use crate::resolver::{Resolver, Resolve};
 use crate::scanner::Scanner;
 use crate::stmt::Stmt;
 use crate::token::Literal;
-use crate::token::TokenType;
 use crate::token::Token;
+use crate::token::TokenType;
 
 pub type InterpreterResult<T> = Result<T, RuntimeException>;
 
+#[derive(Clone)]
 pub struct Interpreter {
     had_error: bool,
     had_runtime_error: bool,
     pub environment: Environment,
     repl: bool,
     loop_count: u32,
+    locals: HashMap<Expr, u32>
 }
 
 impl Default for Interpreter {
@@ -41,6 +45,7 @@ impl Default for Interpreter {
             environment,
             repl: false,
             loop_count: 0,
+            locals: HashMap::new()
         }
     }
 }
@@ -53,6 +58,7 @@ impl Interpreter {
             environment: Environment::with_enclosing(environment.clone()),
             loop_count: 0,
             repl: false,
+            locals: HashMap::new()
         }
     }
 
@@ -79,12 +85,25 @@ impl Interpreter {
 
         let mut parser = Parser::new(scanner.tokens);
         let statements = parser.parse();
+
+        if self.had_error {
+            return Ok(())
+        }
+
         match statements {
             Err(err) => {
                 parser.synchronize();
                 self.parser_error(err)?
             }
             Ok(statements) => {
+                let mut resolver = Resolver::new(self.clone());
+                resolver.resolve(statements.clone());
+                self.had_error = resolver.interpreter.had_error;
+
+                if self.had_error {
+                    return Ok(())
+                }
+
                 if let Err(err) = self.interpret(statements) {
                     if let RuntimeException::Base(err) = err {
                         self.runtime_error(err)?;
@@ -252,8 +271,8 @@ impl Interpreter {
         }
     }
 
-    pub fn resolve(&self, _expr: Expr, _depth: u32) {
-        // self.locals.insert(expr, depth);
+    pub fn resolve(&mut self, expr: Expr, depth: u32) {
+        self.locals.insert(expr, depth);
     }
 
     pub fn evaluate_block(&mut self, stmts: Vec<Stmt>) -> InterpreterResult<()> {
@@ -294,12 +313,18 @@ impl Interpreter {
                     _ => panic!(),
                 }
             }
-            Expr::Assign(token, value) => {
+            Expr::Assign(name, value) => {
+                let expr = Expr::Assign(name.clone(), value.clone());
                 let value = self.evaluate(*value)?;
-                self.environment.assign(token, value.clone())?;
+                let distance = self.locals.get(&expr);
+                if let Some(distance) = distance {
+                    self.environment.assign_at(*distance, name, value.clone())?;
+                } else {
+                    self.environment.assign(name, value.clone())?;
+                }
                 Ok(value)
             }
-            Expr::Variable(name) => self.environment.get(name),
+            Expr::Variable(ref name) => self.look_up_variable(name.clone(), expr),
             Expr::Logical(left, operator, right) => {
                 let left = self.evaluate(*left)?;
 
@@ -510,5 +535,13 @@ impl Interpreter {
             Literal::NativeFunction(_) => "<native fn>".to_string(),
             Literal::LoxFunction(f) => format!("<fn {}>", f.name),
         }
+    }
+
+    fn look_up_variable(&self, name: Token, expr: Expr) -> InterpreterResult<Literal> {
+        let distance = self.locals.get(&expr);
+        if let Some(distance) = distance {
+            return self.environment.get_at(*distance, name.lexeme);
+        }
+        self.environment.get(name)
     }
 }
